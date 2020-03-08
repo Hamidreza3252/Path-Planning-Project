@@ -7,8 +7,10 @@
 // #include "Eigen-3.3/Eigen/QR"
 #include "Eigen/Core"
 #include "Eigen/QR"
-#include "helpers.h"
+#include "HandyModules.h"
 #include "json.hpp"
+
+#include "PathPlanner.h"
 
 // for convenience
 using nlohmann::json;
@@ -18,6 +20,7 @@ using std::vector;
 int main()
 {
   uWS::Hub h;
+  PathPlanner &path_planner = PathPlanner::GetInstance();
 
   // Load up map values for waypoint's x,y,s and d normalized normal vectors
   vector<double> map_waypoints_x;
@@ -55,7 +58,7 @@ int main()
   }
 
   h.onMessage([&map_waypoints_x, &map_waypoints_y, &map_waypoints_s,
-               &map_waypoints_dx, &map_waypoints_dy](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
+               &map_waypoints_dx, &map_waypoints_dy, &path_planner](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
                                                      uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
     // The 4 signifies a websocket message
@@ -63,7 +66,7 @@ int main()
     if (length && length > 2 && data[0] == '4' && data[1] == '2')
     {
 
-      auto s = hasData(data);
+      auto s = HandyModules::hasData(data);
 
       if (s != "")
       {
@@ -90,8 +93,7 @@ int main()
           double end_path_s = j[1]["end_path_s"];
           double end_path_d = j[1]["end_path_d"];
 
-          // Sensor Fusion Data, a list of all other cars on the same side
-          //   of the road.
+          // Sensor Fusion Data, a list of all other cars on the same side of the road.
           auto sensor_fusion = j[1]["sensor_fusion"];
 
           json msgJson;
@@ -104,16 +106,20 @@ int main()
            *   sequentially every .02 seconds
            */
 
-          
           double dist_inc = 0.5;
+          int path_points_count = 50;
+          // path_planner.StraightPathXY(next_x_vals, next_y_vals, car_x, car_y, car_yaw, dist_inc, path_points_count);
+          path_planner.StraightPathSD(next_x_vals, next_y_vals, car_x, car_y, car_yaw, 4.0, 
+            map_waypoints_s, map_waypoints_x, map_waypoints_y, dist_inc, path_points_count);
+
+
+          /*          
           for (int i = 0; i < 50; ++i)
           {
             next_x_vals.push_back(car_x + (dist_inc * i) * cos(deg2rad(car_yaw)));
             next_y_vals.push_back(car_y + (dist_inc * i) * sin(deg2rad(car_yaw)));
           }
-
-
-
+          */
 
           msgJson["next_x"] = next_x_vals;
           msgJson["next_y"] = next_y_vals;

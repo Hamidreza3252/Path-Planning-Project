@@ -7,7 +7,7 @@ add_definitions(-std=c++17)
 set(CXX_FLAGS "-Wall")
 set(CMAKE_CXX_FLAGS, "${CXX_FLAGS}")
 
-set(sources src/main.cpp)
+set(sources src/main.cpp src/PathPlanner.cpp src/HandyModules.cpp)
 
 
 # if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin") 
@@ -19,6 +19,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL Linux)
   link_directories(/usr/local/lib)
   link_directories(/usr/local/opt/openssl/lib)
   link_directories(/usr/local/Cellar/libuv/1.11.0/lib)
+  link_directories(/usr/include/uWS)
 
 endif(CMAKE_SYSTEM_NAME STREQUAL Linux)
 # endif(${CMAKE_SYSTEM_NAME} MATCHES "Darwin") 
