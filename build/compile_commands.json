@@ -1,17 +1,17 @@
 [
 {
   "directory": "/home/hamidreza/Documents/Projects/Path-Planning-Project/build",
-  "command": "/usr/bin/c++   -I/usr/local/opt/openssl/include -I/home/hamidreza/Documents/Projects/Path-Planning-Project/../includes/Eigen  -g   -std=c++17 -o CMakeFiles/path_planning.dir/src/main.cpp.o -c /home/hamidreza/Documents/Projects/Path-Planning-Project/src/main.cpp",
+  "command": "/usr/bin/c++   -I/usr/local/include -I/usr/local/opt/openssl/include -I/home/hamidreza/Documents/Projects/Path-Planning-Project/../includes/Eigen  -g   -std=c++17 -o CMakeFiles/path_planning.dir/src/main.cpp.o -c /home/hamidreza/Documents/Projects/Path-Planning-Project/src/main.cpp",
   "file": "/home/hamidreza/Documents/Projects/Path-Planning-Project/src/main.cpp"
 },
 {
   "directory": "/home/hamidreza/Documents/Projects/Path-Planning-Project/build",
-  "command": "/usr/bin/c++   -I/usr/local/opt/openssl/include -I/home/hamidreza/Documents/Projects/Path-Planning-Project/../includes/Eigen  -g   -std=c++17 -o CMakeFiles/path_planning.dir/src/PathPlanner.cpp.o -c /home/hamidreza/Documents/Projects/Path-Planning-Project/src/PathPlanner.cpp",
+  "command": "/usr/bin/c++   -I/usr/local/include -I/usr/local/opt/openssl/include -I/home/hamidreza/Documents/Projects/Path-Planning-Project/../includes/Eigen  -g   -std=c++17 -o CMakeFiles/path_planning.dir/src/PathPlanner.cpp.o -c /home/hamidreza/Documents/Projects/Path-Planning-Project/src/PathPlanner.cpp",
   "file": "/home/hamidreza/Documents/Projects/Path-Planning-Project/src/PathPlanner.cpp"
 },
 {
   "directory": "/home/hamidreza/Documents/Projects/Path-Planning-Project/build",
-  "command": "/usr/bin/c++   -I/usr/local/opt/openssl/include -I/home/hamidreza/Documents/Projects/Path-Planning-Project/../includes/Eigen  -g   -std=c++17 -o CMakeFiles/path_planning.dir/src/HandyModules.cpp.o -c /home/hamidreza/Documents/Projects/Path-Planning-Project/src/HandyModules.cpp",
+  "command": "/usr/bin/c++   -I/usr/local/include -I/usr/local/opt/openssl/include -I/home/hamidreza/Documents/Projects/Path-Planning-Project/../includes/Eigen  -g   -std=c++17 -o CMakeFiles/path_planning.dir/src/HandyModules.cpp.o -c /home/hamidreza/Documents/Projects/Path-Planning-Project/src/HandyModules.cpp",
   "file": "/home/hamidreza/Documents/Projects/Path-Planning-Project/src/HandyModules.cpp"
 }
 ]

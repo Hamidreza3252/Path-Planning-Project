@@ -1,6 +1,13 @@
 {
   "C_Cpp.default.configurationProvider": "vector-of-bool.cmake-tools",
   "files.associations": {
-    "iosfwd": "cpp"
+    "iosfwd": "cpp",
+    "bvh": "cpp",
+    "*.tcc": "cpp",
+    "algorithm": "cpp",
+    "iterator": "cpp",
+    "memory": "cpp",
+    "random": "cpp",
+    "functional": "cpp"
   }
 }

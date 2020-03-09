@@ -66,7 +66,7 @@ int main()
     if (length && length > 2 && data[0] == '4' && data[1] == '2')
     {
 
-      auto s = HandyModules::hasData(data);
+      auto s = HandyModules::HasData(data);
 
       if (s != "")
       {
@@ -109,7 +109,8 @@ int main()
           double dist_inc = 0.5;
           int path_points_count = 50;
           // path_planner.StraightPathXY(next_x_vals, next_y_vals, car_x, car_y, car_yaw, dist_inc, path_points_count);
-          path_planner.StraightPathSD(next_x_vals, next_y_vals, car_x, car_y, car_yaw, 4.0, 
+
+          path_planner.StraightPathSD(next_x_vals, next_y_vals, car_s, car_d, car_yaw, 4.0, 
             map_waypoints_s, map_waypoints_x, map_waypoints_y, dist_inc, path_points_count);
 
 
