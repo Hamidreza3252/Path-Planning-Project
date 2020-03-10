@@ -2,6 +2,7 @@
 
 #include <math.h>
 #include "HandyModules.h"
+#include "spline.h"
 
 PathPlanner::PathPlanner()
 {

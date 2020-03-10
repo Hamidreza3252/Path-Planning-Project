@@ -57,9 +57,13 @@ int main()
     map_waypoints_dy.push_back(d_y);
   }
 
+  int car_lane = 1;          // left most lane
+  double car_ref_vel = 49.5; // mph
+
   h.onMessage([&map_waypoints_x, &map_waypoints_y, &map_waypoints_s,
-               &map_waypoints_dx, &map_waypoints_dy, &path_planner](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
-                                                     uWS::OpCode opCode) {
+               &map_waypoints_dx, &map_waypoints_dy, &path_planner,
+               &car_lane, &car_ref_vel](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
+                                        uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
     // The 4 signifies a websocket message
     // The 2 signifies a websocket event
@@ -96,10 +100,79 @@ int main()
           // Sensor Fusion Data, a list of all other cars on the same side of the road.
           auto sensor_fusion = j[1]["sensor_fusion"];
 
-          json msgJson;
+          json msg_json;
+
+          int prev_path_size = previous_path_x.size();
+          vector<double> path_points_x;
+          vector<double> path_points_y;
+
+          // these references are used to transfor the path coordinates into the local coordinate system attached to the car
+          double ref_x = car_x;
+          double ref_y = car_y;
+          double ref_yaw = HandyModules::Deg2Rad(car_yaw);
 
           vector<double> next_x_vals;
           vector<double> next_y_vals;
+
+          // use two points that make the path tanget to the car
+          if (prev_path_size < 2)
+          {
+            double prev_car_x = car_x - cos(car_yaw);
+            double prev_car_y = car_y - sin(car_yaw);
+
+            path_points_x.push_back(prev_car_x);
+            path_points_y.push_back(car_x);
+
+            path_points_x.push_back(prev_car_y);
+            path_points_y.push_back(car_y);
+          }
+          // use the pervious path's end points as starting references to generate a smooth path
+          else
+          {
+            // redefine reference state on previous path end point
+            double ref_x_1 = previous_path_x[prev_path_size - 1];
+            double ref_y_1 = previous_path_y[prev_path_size - 1];
+
+            double ref_x_2 = previous_path_x[prev_path_size - 2];
+            double ref_y_2 = previous_path_y[prev_path_size - 2];
+
+            ref_yaw = atan2(ref_y_1 - ref_y_2, ref_x_1 - ref_x_2);
+
+            // use two points that make the path tangent to the previous path's end point
+            path_points_x.push_back(ref_x_2);
+            path_points_y.push_back(ref_x_1);
+
+            path_points_x.push_back(ref_y_2);
+            path_points_y.push_back(ref_y_1);
+          }
+
+          // In Frenet add evenly 30m spaced points ahead of the startng reference
+
+          double car_lane_dist = 2.0 + 4.0 * car_lane;
+
+          vector<double> next_wp_xy_0 = HandyModules::GetXY(car_s + 30.0, car_lane_dist, map_waypoints_s, map_waypoints_x, map_waypoints_y);
+          vector<double> next_wp_xy_1 = HandyModules::GetXY(car_s + 60.0, car_lane_dist, map_waypoints_s, map_waypoints_x, map_waypoints_y);
+          vector<double> next_wp_xy_2 = HandyModules::GetXY(car_s + 90.0, car_lane_dist, map_waypoints_s, map_waypoints_x, map_waypoints_y);
+
+          path_points_x.push_back(next_wp_xy_0[0]);
+          path_points_x.push_back(next_wp_xy_1[0]);
+          path_points_x.push_back(next_wp_xy_2[0]);
+
+          path_points_y.push_back(next_wp_xy_0[1]);
+          path_points_y.push_back(next_wp_xy_1[1]);
+          path_points_y.push_back(next_wp_xy_2[1]);
+
+          // shifting thw car reference angle to 0 degree
+          for (int i = 0; i < path_points_x.size(); ++i)
+          {
+            double shifted_x = path_points_x[i] - ref_x;
+            double shifted_y = path_points_y[i] - ref_y;
+
+            path_points_x[i] = (shifted_x * cos(0.0 - ref_yaw) - shifted_y * sin(0.0 - ref_yaw));
+            path_points_y[i] = (shifted_x * cos(0.0 - ref_yaw) + shifted_y * sin(0.0 - ref_yaw));
+          }
+
+
 
           /**
            * TODO: define a path made up of (x,y) points that the car will visit
@@ -110,9 +183,8 @@ int main()
           int path_points_count = 50;
           // path_planner.StraightPathXY(next_x_vals, next_y_vals, car_x, car_y, car_yaw, dist_inc, path_points_count);
 
-          path_planner.StraightPathSD(next_x_vals, next_y_vals, car_s, car_d, car_yaw, 4.0, 
-            map_waypoints_s, map_waypoints_x, map_waypoints_y, dist_inc, path_points_count);
-
+          path_planner.StraightPathSD(next_x_vals, next_y_vals, car_s, car_d, car_yaw, 4.0,
+                                      map_waypoints_s, map_waypoints_x, map_waypoints_y, dist_inc, path_points_count);
 
           /*          
           for (int i = 0; i < 50; ++i)
@@ -122,10 +194,10 @@ int main()
           }
           */
 
-          msgJson["next_x"] = next_x_vals;
-          msgJson["next_y"] = next_y_vals;
+          msg_json["next_x"] = next_x_vals;
+          msg_json["next_y"] = next_y_vals;
 
-          auto msg = "42[\"control\"," + msgJson.dump() + "]";
+          auto msg = "42[\"control\"," + msg_json.dump() + "]";
 
           ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
         } // end "telemetry" if
