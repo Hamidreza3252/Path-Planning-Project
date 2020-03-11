@@ -11,6 +11,7 @@
 #include "json.hpp"
 
 #include "PathPlanner.h"
+#include "spline.h"
 
 // for convenience
 using nlohmann::json;
@@ -90,7 +91,8 @@ int main()
           double car_yaw = j[1]["yaw"];
           double car_speed = j[1]["speed"];
 
-          // Previous path data given to the Planner
+          // Previous path data given to the Planner 
+          // the size of previous path points is 50 minus (-) the number of points car could go to while driving or simulation 
           auto previous_path_x = j[1]["previous_path_x"];
           auto previous_path_y = j[1]["previous_path_y"];
           // Previous path's end s and d values
@@ -103,16 +105,14 @@ int main()
           json msg_json;
 
           int prev_path_size = previous_path_x.size();
-          vector<double> path_points_x;
-          vector<double> path_points_y;
+          // we will use up to five anchor points to calculate the spline curve 
+          vector<double> path_anchor_points_x;
+          vector<double> path_anchor_points_y;
 
           // these references are used to transfor the path coordinates into the local coordinate system attached to the car
-          double ref_x = car_x;
-          double ref_y = car_y;
+          // double ref_x = car_x;
+          // double ref_y = car_y;
           double ref_yaw = HandyModules::Deg2Rad(car_yaw);
-
-          vector<double> next_x_vals;
-          vector<double> next_y_vals;
 
           // use two points that make the path tanget to the car
           if (prev_path_size < 2)
@@ -120,11 +120,11 @@ int main()
             double prev_car_x = car_x - cos(car_yaw);
             double prev_car_y = car_y - sin(car_yaw);
 
-            path_points_x.push_back(prev_car_x);
-            path_points_y.push_back(car_x);
+            path_anchor_points_x.push_back(prev_car_x);
+            path_anchor_points_y.push_back(car_x);
 
-            path_points_x.push_back(prev_car_y);
-            path_points_y.push_back(car_y);
+            path_anchor_points_x.push_back(prev_car_y);
+            path_anchor_points_y.push_back(car_y);
           }
           // use the pervious path's end points as starting references to generate a smooth path
           else
@@ -139,11 +139,11 @@ int main()
             ref_yaw = atan2(ref_y_1 - ref_y_2, ref_x_1 - ref_x_2);
 
             // use two points that make the path tangent to the previous path's end point
-            path_points_x.push_back(ref_x_2);
-            path_points_y.push_back(ref_x_1);
+            path_anchor_points_x.push_back(ref_x_2);
+            path_anchor_points_y.push_back(ref_x_1);
 
-            path_points_x.push_back(ref_y_2);
-            path_points_y.push_back(ref_y_1);
+            path_anchor_points_x.push_back(ref_y_2);
+            path_anchor_points_y.push_back(ref_y_1);
           }
 
           // In Frenet add evenly 30m spaced points ahead of the startng reference
@@ -154,23 +154,76 @@ int main()
           vector<double> next_wp_xy_1 = HandyModules::GetXY(car_s + 60.0, car_lane_dist, map_waypoints_s, map_waypoints_x, map_waypoints_y);
           vector<double> next_wp_xy_2 = HandyModules::GetXY(car_s + 90.0, car_lane_dist, map_waypoints_s, map_waypoints_x, map_waypoints_y);
 
-          path_points_x.push_back(next_wp_xy_0[0]);
-          path_points_x.push_back(next_wp_xy_1[0]);
-          path_points_x.push_back(next_wp_xy_2[0]);
+          path_anchor_points_x.push_back(next_wp_xy_0[0]);
+          path_anchor_points_x.push_back(next_wp_xy_1[0]);
+          path_anchor_points_x.push_back(next_wp_xy_2[0]);
 
-          path_points_y.push_back(next_wp_xy_0[1]);
-          path_points_y.push_back(next_wp_xy_1[1]);
-          path_points_y.push_back(next_wp_xy_2[1]);
+          path_anchor_points_y.push_back(next_wp_xy_0[1]);
+          path_anchor_points_y.push_back(next_wp_xy_1[1]);
+          path_anchor_points_y.push_back(next_wp_xy_2[1]);
 
-          // shifting thw car reference angle to 0 degree
-          for (int i = 0; i < path_points_x.size(); ++i)
+          // shifting the car reference angle to 0 degree
+          for (int i = 0; i < path_anchor_points_x.size(); ++i)
           {
-            double shifted_x = path_points_x[i] - ref_x;
-            double shifted_y = path_points_y[i] - ref_y;
+            double shifted_x = path_anchor_points_x[i] - car_x; // ref_x;
+            double shifted_y = path_anchor_points_y[i] - car_y; // ref_y;
 
-            path_points_x[i] = (shifted_x * cos(0.0 - ref_yaw) - shifted_y * sin(0.0 - ref_yaw));
-            path_points_y[i] = (shifted_x * cos(0.0 - ref_yaw) + shifted_y * sin(0.0 - ref_yaw));
+            path_anchor_points_x[i] = (shifted_x * cos(0.0 - ref_yaw) - shifted_y * sin(0.0 - ref_yaw));
+            path_anchor_points_y[i] = (shifted_x * sin(0.0 - ref_yaw) + shifted_y * cos(0.0 - ref_yaw));
           }
+
+          // define the actual (x, y) points that we are going to use for the planner
+          vector<double> next_x_vals;
+          vector<double> next_y_vals;
+
+          for (int i = 0; i < previous_path_x.size(); ++i)
+          {
+            next_x_vals.push_back(previous_path_x[i]);
+            next_y_vals.push_back(previous_path_y[i]);
+          }
+
+          // create an spline instance
+          tk::spline spline;
+          
+          // set the (x, y) points to the spline
+          spline.set_points(path_anchor_points_x, path_anchor_points_y);
+
+          // calculate how to break up the spline points so that we travel at our desired reference velocity 
+          double target_x = 30.0;
+          double target_y = spline(target_x);
+          double target_distance = sqrt(target_x * target_x + target_y * target_y);
+
+          double x_add_on = 0.0;
+
+          for (int i = 0; i <= 50 - previous_path_x.size(); ++i)
+          {
+            double points_count = target_distance / (0.02 * car_ref_vel * HandyModules::kMphToMps);
+
+            double point_x = x_add_on + target_x / points_count;
+            double point_y = spline(point_x);
+
+            x_add_on = point_x;
+
+            double x_ref = point_x;
+            double y_ref = point_y;
+
+            // rotate back to normal after rotating it earlier (global coordinate system)
+            point_x = x_ref * cos(ref_yaw) - y_ref * sin(ref_yaw);
+            point_y = x_ref * sin(ref_yaw) + y_ref * cos(ref_yaw);
+
+            point_x += car_x;
+            point_y += car_y;
+
+            next_x_vals.push_back(point_x);
+            next_y_vals.push_back(point_y);
+
+          }
+
+
+
+
+
+          
 
 
 
