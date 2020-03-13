@@ -123,6 +123,50 @@ int main()
           json msg_json;
 
           int prev_path_size = previous_path_x.size();
+
+          // sensor fusion check to avoid accident
+          if (prev_path_size > 0)
+          {
+            car_s = end_path_s;
+          }
+
+          bool too_close = false;
+
+          // find ref_v to use
+          // for (int i = 0; i < sensor_fusion.size(); ++i)
+          for (auto &sensor_data : sensor_fusion)
+          {
+            // float d = sensor_fusion[i][6];
+            float d = sensor_data[6];
+
+            // car is in my lane
+            if (d < (2 + 4*car_lane + 2) && d > (2 + 4*car_lane - 2))
+            {
+              double vx = sensor_data[3];
+              double vy = sensor_data[4];
+
+              double next_car_speed = sqrt(vx*vx + vy*vy);
+              double next_car_s = sensor_data[5];
+
+              // predict where the car will be in future
+              next_car_s += prev_path_size * 0.02 * next_car_speed;
+
+              if ((next_car_s > car_s) && (next_car_s - car_s) < 30.0)
+              {
+                // 1. lower the ref_vel
+                // 2. flag to try to change lane
+
+                car_ref_vel = MIN(car_ref_vel, next_car_speed);
+
+                // car_ref_vel = 29.5; // mph
+                // too_close = true;
+              }
+            }
+          }
+
+
+
+
           // we will use up to five anchor points to calculate the spline curve 
           vector<double> path_anchor_points_x;
           vector<double> path_anchor_points_y;
