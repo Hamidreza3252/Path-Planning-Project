@@ -69,7 +69,7 @@ int main()
     {
       break;
     }
-  }  
+  }
 
   if (map_waypoints_x.size() == 0)
   {
@@ -135,13 +135,13 @@ int main()
           // use two points that make the path tanget to the car
           if (prev_path_size < 2)
           {
-            double prev_car_x = car_x - cos(car_yaw);
-            double prev_car_y = car_y - sin(car_yaw);
+            double prev_car_x = car_x - cos(ref_yaw);
+            double prev_car_y = car_y - sin(ref_yaw);
 
             path_anchor_points_x.push_back(prev_car_x);
-            path_anchor_points_y.push_back(car_x);
+            path_anchor_points_x.push_back(car_x);
 
-            path_anchor_points_x.push_back(prev_car_y);
+            path_anchor_points_y.push_back(prev_car_y);
             path_anchor_points_y.push_back(car_y);
           }
           // use the pervious path's end points as starting references to generate a smooth path
@@ -158,9 +158,9 @@ int main()
 
             // use two points that make the path tangent to the previous path's end point
             path_anchor_points_x.push_back(ref_x_prev);
-            path_anchor_points_y.push_back(ref_x);
+            path_anchor_points_x.push_back(ref_x);
 
-            path_anchor_points_x.push_back(ref_y_prev);
+            path_anchor_points_y.push_back(ref_y_prev);
             path_anchor_points_y.push_back(ref_y);
           }
 

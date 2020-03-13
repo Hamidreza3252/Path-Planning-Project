@@ -472,8 +472,6 @@ src/Core/util/ReenableStupidWarnings.h
 
 ../../includes/Eigen/Eigen/src/Cholesky/LLT_LAPACKE.h
 
-../../includes/Eigen/Eigen/src/Core/ArithmeticSequence.h
-
 ../../includes/Eigen/Eigen/src/Core/Array.h
 
 ../../includes/Eigen/Eigen/src/Core/ArrayBase.h
@@ -554,8 +552,6 @@ src/Core/util/ReenableStupidWarnings.h
 
 ../../includes/Eigen/Eigen/src/Core/IO.h
 
-../../includes/Eigen/Eigen/src/Core/IndexedView.h
-
 ../../includes/Eigen/Eigen/src/Core/Inverse.h
 
 ../../includes/Eigen/Eigen/src/Core/Map.h
@@ -582,8 +578,6 @@ src/Core/util/ReenableStupidWarnings.h
 
 ../../includes/Eigen/Eigen/src/Core/NumTraits.h
 
-../../includes/Eigen/Eigen/src/Core/PartialReduxEvaluator.h
-
 ../../includes/Eigen/Eigen/src/Core/PermutationMatrix.h
 
 ../../includes/Eigen/Eigen/src/Core/PlainObjectBase.h
@@ -599,8 +593,6 @@ src/Core/util/ReenableStupidWarnings.h
 ../../includes/Eigen/Eigen/src/Core/Ref.h
 
 ../../includes/Eigen/Eigen/src/Core/Replicate.h
-
-../../includes/Eigen/Eigen/src/Core/Reshaped.h
 
 ../../includes/Eigen/Eigen/src/Core/ReturnByValue.h
 
@@ -619,8 +611,6 @@ src/Core/util/ReenableStupidWarnings.h
 ../../includes/Eigen/Eigen/src/Core/SolverBase.h
 
 ../../includes/Eigen/Eigen/src/Core/StableNorm.h
-
-../../includes/Eigen/Eigen/src/Core/StlIterators.h
 
 ../../includes/Eigen/Eigen/src/Core/Stride.h
 
@@ -646,13 +636,9 @@ src/Core/util/ReenableStupidWarnings.h
 
 ../../includes/Eigen/Eigen/src/Core/arch/AVX/TypeCasting.h
 
-../../includes/Eigen/Eigen/src/Core/arch/AVX512/Complex.h
-
 ../../includes/Eigen/Eigen/src/Core/arch/AVX512/MathFunctions.h
 
 ../../includes/Eigen/Eigen/src/Core/arch/AVX512/PacketMath.h
-
-../../includes/Eigen/Eigen/src/Core/arch/AVX512/TypeCasting.h
 
 ../../includes/Eigen/Eigen/src/Core/arch/AltiVec/Complex.h
 
@@ -664,43 +650,13 @@ src/Core/util/ReenableStupidWarnings.h
 
 ../../includes/Eigen/Eigen/src/Core/arch/Default/ConjHelper.h
 
-../../includes/Eigen/Eigen/src/Core/arch/Default/GenericPacketMathFunctions.h
-
-../../includes/Eigen/Eigen/src/Core/arch/Default/GenericPacketMathFunctionsFwd.h
-
-../../includes/Eigen/Eigen/src/Core/arch/Default/Half.h
-
 ../../includes/Eigen/Eigen/src/Core/arch/Default/Settings.h
-
-../../includes/Eigen/Eigen/src/Core/arch/Default/TypeCasting.h
-
-../../includes/Eigen/Eigen/src/Core/arch/GPU/MathFunctions.h
-
-../../includes/Eigen/Eigen/src/Core/arch/GPU/PacketMath.h
-
-../../includes/Eigen/Eigen/src/Core/arch/GPU/TypeCasting.h
-
-../../includes/Eigen/Eigen/src/Core/arch/HIP/hcc/math_constants.h
-
-../../includes/Eigen/Eigen/src/Core/arch/MSA/Complex.h
-iostream
--
-
-../../includes/Eigen/Eigen/src/Core/arch/MSA/MathFunctions.h
-
-../../includes/Eigen/Eigen/src/Core/arch/MSA/PacketMath.h
-iostream
--
-string
--
 
 ../../includes/Eigen/Eigen/src/Core/arch/NEON/Complex.h
 
 ../../includes/Eigen/Eigen/src/Core/arch/NEON/MathFunctions.h
 
 ../../includes/Eigen/Eigen/src/Core/arch/NEON/PacketMath.h
-
-../../includes/Eigen/Eigen/src/Core/arch/NEON/TypeCasting.h
 
 ../../includes/Eigen/Eigen/src/Core/arch/SSE/Complex.h
 
@@ -709,30 +665,6 @@ string
 ../../includes/Eigen/Eigen/src/Core/arch/SSE/PacketMath.h
 
 ../../includes/Eigen/Eigen/src/Core/arch/SSE/TypeCasting.h
-
-../../includes/Eigen/Eigen/src/Core/arch/SYCL/InteropHeaders.h
-
-../../includes/Eigen/Eigen/src/Core/arch/SYCL/MathFunctions.h
-
-../../includes/Eigen/Eigen/src/Core/arch/SYCL/PacketMath.h
-type_traits
--
-
-../../includes/Eigen/Eigen/src/Core/arch/SYCL/SyclMemoryModel.h
-CL/sycl.hpp
--
-stdexcept
--
-cstddef
--
-queue
--
-set
--
-unordered_map
--
-
-../../includes/Eigen/Eigen/src/Core/arch/SYCL/TypeCasting.h
 
 ../../includes/Eigen/Eigen/src/Core/arch/ZVector/Complex.h
 
@@ -800,59 +732,11 @@ atomic
 
 ../../includes/Eigen/Eigen/src/Core/util/BlasUtil.h
 
-../../includes/Eigen/Eigen/src/Core/util/ConfigureVectorization.h
-malloc.h
--
-immintrin.h
--
-mmintrin.h
--
-emmintrin.h
--
-xmmintrin.h
--
-pmmintrin.h
--
-tmmintrin.h
--
-smmintrin.h
--
-nmmintrin.h
--
-immintrin.h
--
-altivec.h
--
-altivec.h
--
-arm_neon.h
--
-vecintrin.h
--
-msa.h
--
-immintrin.h
--
-vector_types.h
--
-cuda_runtime_api.h
--
-cuda_fp16.h
--
-hip/hip_vector_types.h
--
-hip/hip_fp16.h
--
-
 ../../includes/Eigen/Eigen/src/Core/util/Constants.h
 
 ../../includes/Eigen/Eigen/src/Core/util/DisableStupidWarnings.h
 
 ../../includes/Eigen/Eigen/src/Core/util/ForwardDeclarations.h
-
-../../includes/Eigen/Eigen/src/Core/util/IndexedViewHelper.h
-
-../../includes/Eigen/Eigen/src/Core/util/IntegralConstant.h
 
 ../../includes/Eigen/Eigen/src/Core/util/MKL_support.h
 mkl.h
@@ -890,11 +774,7 @@ stdint.h
 
 ../../includes/Eigen/Eigen/src/Core/util/ReenableStupidWarnings.h
 
-../../includes/Eigen/Eigen/src/Core/util/ReshapedHelper.h
-
 ../../includes/Eigen/Eigen/src/Core/util/StaticAssert.h
-
-../../includes/Eigen/Eigen/src/Core/util/SymbolicIndex.h
 
 ../../includes/Eigen/Eigen/src/Core/util/XprHelper.h
 
@@ -944,17 +824,9 @@ lapacke_mangling.h
 
 ../../includes/Eigen/Eigen/src/plugins/CommonCwiseUnaryOps.h
 
-../../includes/Eigen/Eigen/src/plugins/IndexedViewMethods.h
-IndexedViewMethods.h
-../../includes/Eigen/Eigen/src/plugins/IndexedViewMethods.h
-
 ../../includes/Eigen/Eigen/src/plugins/MatrixCwiseBinaryOps.h
 
 ../../includes/Eigen/Eigen/src/plugins/MatrixCwiseUnaryOps.h
-
-../../includes/Eigen/Eigen/src/plugins/ReshapedMethods.h
-ReshapedMethods.h
-../../includes/Eigen/Eigen/src/plugins/ReshapedMethods.h
 
 /home/hamidreza/Documents/Projects/Path-Planning-Project/src/HandyModules.h
 math.h
