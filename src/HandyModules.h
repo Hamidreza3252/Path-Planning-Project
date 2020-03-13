@@ -14,7 +14,7 @@ class HandyModules
 private:
 
 public:
-  const static double kMphToMps = 0.44704;
+  constexpr static double kMphToMps = 0.44704;
 
   // Checks if the SocketIO event has JSON data.
   // If there is data the JSON object in string format will be returned,
@@ -25,8 +25,8 @@ public:
 
   // For converting back and forth between radians and degrees.
   static constexpr double pi() { return M_PI; }
-  static double Deg2Rad(double x) { return x * pi() / 180; }
-  static double Rad2Deg(double x) { return x * 180 / pi(); }
+  static double Deg2Rad(double x) { return x * pi() / 180.0; }
+  static double Rad2Deg(double x) { return x * 180.0 / pi(); }
 
   // Calculate distance between two points
   static double Distance(double x1, double y1, double x2, double y2);

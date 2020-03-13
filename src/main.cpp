@@ -3,6 +3,7 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <filesystem>
 // #include "Eigen-3.3/Eigen/Core"
 // #include "Eigen-3.3/Eigen/QR"
 #include "Eigen/Core"
@@ -31,31 +32,48 @@ int main()
   vector<double> map_waypoints_dy;
 
   // Waypoint map to read from
-  string map_file_ = "../data/highway_map.csv";
-  // The max s value before wrapping around the track back to 0
-  double max_s = 6945.554;
+  // string map_file_;
+  string map_files_[2] = {"../data/highway_map.csv", "data/highway_map.csv"};
+  // string current_dir = std::filesystem::current_path();
+  // std::cout << current_dir << std::endl;
 
-  std::ifstream in_map_(map_file_.c_str(), std::ifstream::in);
-
-  string line;
-  while (getline(in_map_, line))
+  for (string map_file : map_files_)
   {
-    std::istringstream iss(line);
-    double x;
-    double y;
-    float s;
-    float d_x;
-    float d_y;
-    iss >> x;
-    iss >> y;
-    iss >> s;
-    iss >> d_x;
-    iss >> d_y;
-    map_waypoints_x.push_back(x);
-    map_waypoints_y.push_back(y);
-    map_waypoints_s.push_back(s);
-    map_waypoints_dx.push_back(d_x);
-    map_waypoints_dy.push_back(d_y);
+    // The max s value before wrapping around the track back to 0
+    double max_s = 6945.554;
+
+    std::ifstream in_map_(map_file.c_str(), std::ifstream::in);
+
+    string line;
+    while (getline(in_map_, line))
+    {
+      std::istringstream iss(line);
+      double x;
+      double y;
+      float s;
+      float d_x;
+      float d_y;
+      iss >> x;
+      iss >> y;
+      iss >> s;
+      iss >> d_x;
+      iss >> d_y;
+      map_waypoints_x.push_back(x);
+      map_waypoints_y.push_back(y);
+      map_waypoints_s.push_back(s);
+      map_waypoints_dx.push_back(d_x);
+      map_waypoints_dy.push_back(d_y);
+    }
+
+    if (map_waypoints_x.size() > 0)
+    {
+      break;
+    }
+  }  
+
+  if (map_waypoints_x.size() == 0)
+  {
+    std::cout << "ERROR: no waypoint data is loaded." << std::endl;
   }
 
   int car_lane = 1;          // left most lane
@@ -110,8 +128,8 @@ int main()
           vector<double> path_anchor_points_y;
 
           // these references are used to transfor the path coordinates into the local coordinate system attached to the car
-          // double ref_x = car_x;
-          // double ref_y = car_y;
+          double ref_x = car_x;
+          double ref_y = car_y;
           double ref_yaw = HandyModules::Deg2Rad(car_yaw);
 
           // use two points that make the path tanget to the car
@@ -130,20 +148,20 @@ int main()
           else
           {
             // redefine reference state on previous path end point
-            double ref_x_1 = previous_path_x[prev_path_size - 1];
-            double ref_y_1 = previous_path_y[prev_path_size - 1];
+            ref_x = previous_path_x[prev_path_size - 1];
+            ref_y = previous_path_y[prev_path_size - 1];
 
-            double ref_x_2 = previous_path_x[prev_path_size - 2];
-            double ref_y_2 = previous_path_y[prev_path_size - 2];
+            double ref_x_prev = previous_path_x[prev_path_size - 2];
+            double ref_y_prev = previous_path_y[prev_path_size - 2];
 
-            ref_yaw = atan2(ref_y_1 - ref_y_2, ref_x_1 - ref_x_2);
+            ref_yaw = atan2(ref_y - ref_y_prev, ref_x - ref_x_prev);
 
             // use two points that make the path tangent to the previous path's end point
-            path_anchor_points_x.push_back(ref_x_2);
-            path_anchor_points_y.push_back(ref_x_1);
+            path_anchor_points_x.push_back(ref_x_prev);
+            path_anchor_points_y.push_back(ref_x);
 
-            path_anchor_points_x.push_back(ref_y_2);
-            path_anchor_points_y.push_back(ref_y_1);
+            path_anchor_points_x.push_back(ref_y_prev);
+            path_anchor_points_y.push_back(ref_y);
           }
 
           // In Frenet add evenly 30m spaced points ahead of the startng reference
@@ -162,15 +180,22 @@ int main()
           path_anchor_points_y.push_back(next_wp_xy_1[1]);
           path_anchor_points_y.push_back(next_wp_xy_2[1]);
 
-          // shifting the car reference angle to 0 degree
+          // shifting the car reference angle to 0 degree, with respect to x & y of either the car or the end point of previous path
           for (int i = 0; i < path_anchor_points_x.size(); ++i)
           {
-            double shifted_x = path_anchor_points_x[i] - car_x; // ref_x;
-            double shifted_y = path_anchor_points_y[i] - car_y; // ref_y;
+            double shifted_x = path_anchor_points_x[i] - ref_x;
+            double shifted_y = path_anchor_points_y[i] - ref_y;
 
             path_anchor_points_x[i] = (shifted_x * cos(0.0 - ref_yaw) - shifted_y * sin(0.0 - ref_yaw));
             path_anchor_points_y[i] = (shifted_x * sin(0.0 - ref_yaw) + shifted_y * cos(0.0 - ref_yaw));
           }
+
+          // create an spline instance
+          tk::spline spline;
+          
+          // set the (x, y) points to the spline
+          // note that the points are transformed into the local coordinate system located at ref_x and ref_y
+          spline.set_points(path_anchor_points_x, path_anchor_points_y);
 
           // define the actual (x, y) points that we are going to use for the planner
           vector<double> next_x_vals;
@@ -182,12 +207,6 @@ int main()
             next_y_vals.push_back(previous_path_y[i]);
           }
 
-          // create an spline instance
-          tk::spline spline;
-          
-          // set the (x, y) points to the spline
-          spline.set_points(path_anchor_points_x, path_anchor_points_y);
-
           // calculate how to break up the spline points so that we travel at our desired reference velocity 
           double target_x = 30.0;
           double target_y = spline(target_x);
@@ -195,6 +214,7 @@ int main()
 
           double x_add_on = 0.0;
 
+          // the additional points that are added to the end point of the previous path, ref_x and ref_y
           for (int i = 0; i <= 50 - previous_path_x.size(); ++i)
           {
             double points_count = target_distance / (0.02 * car_ref_vel * HandyModules::kMphToMps);
@@ -204,19 +224,18 @@ int main()
 
             x_add_on = point_x;
 
-            double x_ref = point_x;
-            double y_ref = point_y;
+            double temp_point_x = point_x;
+            double temp_point_y = point_y;
 
             // rotate back to normal after rotating it earlier (global coordinate system)
-            point_x = x_ref * cos(ref_yaw) - y_ref * sin(ref_yaw);
-            point_y = x_ref * sin(ref_yaw) + y_ref * cos(ref_yaw);
+            point_x = temp_point_x * cos(ref_yaw) - temp_point_y * sin(ref_yaw);
+            point_y = temp_point_x * sin(ref_yaw) + temp_point_y * cos(ref_yaw);
 
-            point_x += car_x;
-            point_y += car_y;
+            point_x += ref_x;
+            point_y += ref_y;
 
             next_x_vals.push_back(point_x);
             next_y_vals.push_back(point_y);
-
           }
 
 
@@ -232,12 +251,14 @@ int main()
            *   sequentially every .02 seconds
            */
 
+          /*
           double dist_inc = 0.5;
           int path_points_count = 50;
           // path_planner.StraightPathXY(next_x_vals, next_y_vals, car_x, car_y, car_yaw, dist_inc, path_points_count);
 
           path_planner.StraightPathSD(next_x_vals, next_y_vals, car_s, car_d, car_yaw, 4.0,
                                       map_waypoints_s, map_waypoints_x, map_waypoints_y, dist_inc, path_points_count);
+          */
 
           /*          
           for (int i = 0; i < 50; ++i)
