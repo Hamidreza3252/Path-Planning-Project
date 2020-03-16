@@ -77,11 +77,12 @@ int main()
   }
 
   int car_lane = 1;          // left most lane
-  double car_ref_vel = 49.5; // mph
+  double car_ref_vel = 0.0; // mph
+  double speed_limit = 49.5; // mph
 
   h.onMessage([&map_waypoints_x, &map_waypoints_y, &map_waypoints_s,
                &map_waypoints_dx, &map_waypoints_dy, &path_planner,
-               &car_lane, &car_ref_vel](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
+               &car_lane, &car_ref_vel, &speed_limit](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
                                         uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
     // The 4 signifies a websocket message
@@ -131,38 +132,28 @@ int main()
           }
 
           bool too_close = false;
+          double next_car_spped;
+          // double speed_limit_ref = speed_limit;
 
-          // find ref_v to use
-          // for (int i = 0; i < sensor_fusion.size(); ++i)
-          for (auto &sensor_data : sensor_fusion)
+          path_planner.CheckCollision(sensor_fusion, car_s, car_lane, 4.0, prev_path_size, too_close, next_car_spped);
+
+          if (too_close)
           {
-            // float d = sensor_fusion[i][6];
-            float d = sensor_data[6];
+            car_ref_vel -= 0.224; // ~5 m/s
 
-            // car is in my lane
-            if (d < (2 + 4*car_lane + 2) && d > (2 + 4*car_lane - 2))
+            if (car_lane > 0)
             {
-              double vx = sensor_data[3];
-              double vy = sensor_data[4];
-
-              double next_car_speed = sqrt(vx*vx + vy*vy);
-              double next_car_s = sensor_data[5];
-
-              // predict where the car will be in future
-              next_car_s += prev_path_size * 0.02 * next_car_speed;
-
-              if ((next_car_s > car_s) && (next_car_s - car_s) < 30.0)
-              {
-                // 1. lower the ref_vel
-                // 2. flag to try to change lane
-
-                car_ref_vel = MIN(car_ref_vel, next_car_speed);
-
-                // car_ref_vel = 29.5; // mph
-                // too_close = true;
-              }
+              car_lane = 0;
             }
           }
+          else
+          {
+            car_ref_vel += 0.224; // ~5 m/s
+          }
+
+          car_ref_vel = MIN(car_ref_vel, speed_limit);
+          car_ref_vel = MAX(car_ref_vel, 0.0);
+          
 
 
 

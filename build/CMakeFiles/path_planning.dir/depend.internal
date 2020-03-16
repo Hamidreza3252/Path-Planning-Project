@@ -94,6 +94,11 @@ CMakeFiles/path_planning.dir/src/main.cpp.o
  ../../includes/Eigen/Eigen/src/Core/arch/AltiVec/MathFunctions.h
  ../../includes/Eigen/Eigen/src/Core/arch/AltiVec/PacketMath.h
  ../../includes/Eigen/Eigen/src/Core/arch/CUDA/Complex.h
+ ../../includes/Eigen/Eigen/src/Core/arch/CUDA/Half.h
+ ../../includes/Eigen/Eigen/src/Core/arch/CUDA/MathFunctions.h
+ ../../includes/Eigen/Eigen/src/Core/arch/CUDA/PacketMath.h
+ ../../includes/Eigen/Eigen/src/Core/arch/CUDA/PacketMathHalf.h
+ ../../includes/Eigen/Eigen/src/Core/arch/CUDA/TypeCasting.h
  ../../includes/Eigen/Eigen/src/Core/arch/Default/ConjHelper.h
  ../../includes/Eigen/Eigen/src/Core/arch/Default/Settings.h
  ../../includes/Eigen/Eigen/src/Core/arch/NEON/Complex.h
