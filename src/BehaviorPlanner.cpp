@@ -9,10 +9,17 @@
 
 BehaviorPlanner::BehaviorPlanner()
 {
+  prev_state_ = FiniteState::kKeepLane;
   state_ = FiniteState::kKeepLane;
   vehicle.lane_ = 1; // middle lane
   state_duration_ = 0.0;
   speed_buffer_ = 0.2; //mph
+  lanes_count = 3;
+
+  for (int i = 0; i < lanes_count; ++i)
+  {
+    lane_speeds_.push_back(0.0); // mph
+  }
 }
 // --------------------------------------------------------------------------------------------------------------------
 
@@ -26,8 +33,11 @@ BehaviorPlanner &BehaviorPlanner::GetInstance()
 
 void BehaviorPlanner::ChangeState(FiniteState new_state)
 {
+  prev_state_ = state_;
   state_ = new_state;
   state_duration_ = 0.0;
+
+  std::cout << "Changing state: " << state_ << std::endl;
 }
 // --------------------------------------------------------------------------------------------------------------------
 
@@ -89,48 +99,71 @@ void BehaviorPlanner::HandleHighwayDriving(double end_path_s, double speed_limit
     car_s = vehicle.s_;
   }
 
-  // this check will be done with the next car, independent of the state of the ego car
-  CheckCollision(vehicle.sensor_fusions_, vehicle.speed_, car_s, 4.0, prev_path_size, too_close, next_car_spped);
+  double speed_cost;
+  double left_lane_inefficiency_cost = 1.0;
+  double right_lane_inefficiency_cost = 1.0;
+  double ego_lane_inefficiency_cost = 1.0;
+  double min_cost;
+  SpeedCostReductionAction recommended_action;
 
+  // this check will be done with the next car, independent of the state of the ego car
+  CheckCollision(car_s, 4.0, prev_path_size, too_close, next_car_spped);
+
+  // safety critical
   if (too_close)
   {
+    // std::cout << "vehicle.speed_: " << vehicle.speed_ << std::endl;
+
     target_speed = std::min(next_car_spped, target_speed);
     // std::cout << "safe_speed: " << safe_speed << std::endl;
 
-    // behavior_planner.Decelerate(0.0, car_ref_vel);
     Decelerate(target_speed, vehicle.action_speed_);
-
-    switch (state_)
-    {
-    case FiniteState::kKeepLane:
-      if (vehicle.lane_ > 0)
-      {
-        std::cout << "Switch to FiniteState::kPrepareChangeLaneLeft" << std::endl;
-        ChangeState(FiniteState::kPrepareChangeLaneLeft);
-      }
-      break;
-
-    case FiniteState::kPrepareChangeLaneLeft:
-      // std::cout << behavior_planner.state_duration_ << std::endl;
-
-      if (state_duration_ > BehaviorPlanner::kMaxStateWaitTime)
-      {
-        std::cout << "Switch to FiniteState::kPrepareChangeLaneRight" << std::endl;
-        ChangeState(FiniteState::kPrepareChangeLaneRight);
-      }
-
-    default:
-      break;
-    }
-
-    if (vehicle.lane_ > 0)
-    {
-      vehicle.lane_ -= 0;
-    }
   }
   else
   {
     Accelerate(target_speed, vehicle.action_speed_);
+  }
+
+  // every 2 secs
+  if (state_duration_ > 2.0)
+  {
+    // SpeedCost(vehicle.speed_, speed_limit, speed_cost, recommended_action);
+
+    // chech if we should plan to change lane or we should keep the same lane
+
+    InefficiencyCost(target_speed, vehicle.lane_, ego_lane_inefficiency_cost);
+    std::cout << "ego_lane_inefficiency_cost: " << ego_lane_inefficiency_cost << std::endl;
+
+    if (vehicle.lane_ > 0)
+    {
+      InefficiencyCost(target_speed, vehicle.lane_ - 1, left_lane_inefficiency_cost);
+      std::cout << "left_lane_inefficiency_cost: " << left_lane_inefficiency_cost << std::endl;
+    }
+
+    min_cost = std::min(ego_lane_inefficiency_cost, left_lane_inefficiency_cost);
+
+    if (vehicle.lane_ < lanes_count - 1)
+    {
+      InefficiencyCost(target_speed, vehicle.lane_ + 1, right_lane_inefficiency_cost);
+      std::cout << "right_lane_inefficiency_cost: " << right_lane_inefficiency_cost << std::endl;
+    }
+
+    min_cost = std::min(min_cost, right_lane_inefficiency_cost);
+
+    if (min_cost == ego_lane_inefficiency_cost)
+    {
+      ChangeState(FiniteState::kKeepLane);
+    }
+    else if (min_cost == left_lane_inefficiency_cost)
+    {
+      ChangeState(FiniteState::kPrepareChangeLaneLeft);
+    }
+    else
+    {
+      ChangeState(FiniteState::kPrepareChangeLaneRight);
+    }
+    
+    std::cout << std::endl;
   }
 
   state_duration_ += 0.02; //sec
@@ -152,8 +185,7 @@ void BehaviorPlanner::HandleHighwayDriving(double end_path_s, double speed_limit
  * @next_car_speed: (output) the speed of the next car in the same lane
  */
 
-void BehaviorPlanner::CheckCollision(const std::vector<std::vector<double>> &sensor_fusions, double ego_car_speed, double ego_car_s,
-                                     double lane_width, int prev_path_size, bool &too_close, double &next_car_speed)
+void BehaviorPlanner::CheckCollision(double car_s, double lane_width, int prev_path_size, bool &too_close, double &next_car_speed)
 {
 
   // bool too_close = false;
@@ -166,7 +198,7 @@ void BehaviorPlanner::CheckCollision(const std::vector<std::vector<double>> &sen
 
   // find ref_v to use
   // for (int i = 0; i < sensor_fusion.size(); ++i)
-  for (auto &sensor_data : sensor_fusions)
+  for (auto &sensor_data : vehicle.sensor_fusions_)
   {
     // float d = sensor_fusion[i][6];
     float d = sensor_data[6];
@@ -185,9 +217,9 @@ void BehaviorPlanner::CheckCollision(const std::vector<std::vector<double>> &sen
       // predict where the car will be in future
       next_car_s += prev_path_size * 0.02 * next_car_speed;
 
-      if ((next_car_s > ego_car_s) && (next_car_s - ego_car_s) < 30.0)
+      if ((next_car_s > car_s) && (next_car_s - car_s) < 30.0)
       {
-        next_car_speed = ego_car_speed - next_car_speed;
+        next_car_speed = vehicle.speed_ - next_car_speed;
         // std::cout << "next_car_speed" << next_car_speed << std::endl;
 
         // 1. lower the ref_vel
@@ -209,6 +241,14 @@ void BehaviorPlanner::CheckCollision(const std::vector<std::vector<double>> &sen
   }
 }
 // --------------------------------------------------------------------------------------------------------------------
+
+void BehaviorPlanner::UpdateLanesSpeeds(void)
+{
+  // lane_speeds_
+}
+
+// --------------------------------------------------------------------------------------------------------------------
+
 void BehaviorPlanner::GeneratePath(double car_s, int prev_path_size,
                                    const vector<double> &previous_path_x, const vector<double> &previous_path_y,
                                    const vector<double> &map_waypoints_s, const vector<double> &map_waypoints_x, const vector<double> &map_waypoints_y,
@@ -294,7 +334,7 @@ void BehaviorPlanner::GeneratePath(double car_s, int prev_path_size,
     next_y_vals.push_back(previous_path_y[i]);
   }
 
-  int segments_count = 100 - previous_path_x.size();
+  int segments_count = 70 - previous_path_x.size();
 
   // calculate how to break up the spline points so that we travel at our desired reference velocity
   double target_x_segment = (0.02 * vehicle.action_speed_ * HandyModules::kMphToMps);
@@ -352,44 +392,59 @@ void BehaviorPlanner::Accelerate(double upper_bound_vel, double &car_ref_vel)
 }
 // --------------------------------------------------------------------------------------------------------------------
 
-void BehaviorPlanner::SpeedCost(double ego_car_speed, double target_speed, double speed_limit, double &speed_cost)
+void BehaviorPlanner::SpeedCost(double ego_car_speed, double speed_limit, double &speed_cost, SpeedCostReductionAction &recommended_action)
 {
-  assert(target_speed > 0.0);
+  double safe_speed_limit = speed_limit - speed_buffer_;
+  speed_cost = 1.0;
 
-  if (ego_car_speed <= target_speed)
+  if (ego_car_speed <= safe_speed_limit)
   {
-    speed_cost = kStopCost * (target_speed - ego_car_speed) / target_speed;
+    speed_cost = kStopCost * (safe_speed_limit - ego_car_speed) / safe_speed_limit;
+    recommended_action = SpeedCostReductionAction::kAccelerate;
   }
-  else if (ego_car_speed > target_speed && ego_car_speed < speed_limit)
+  else if (ego_car_speed > safe_speed_limit && ego_car_speed < speed_limit)
   {
-    speed_cost = (ego_car_speed - target_speed) / speed_buffer_;
+    speed_cost = (ego_car_speed - safe_speed_limit) / speed_buffer_;
+    recommended_action = SpeedCostReductionAction::kDecelerate;
   }
   else
   {
     speed_cost = 1.0;
+    recommended_action = SpeedCostReductionAction::kDecelerate;
   }
 }
 // --------------------------------------------------------------------------------------------------------------------
 
-void BehaviorPlanner::GoalDistanceCost(int goal_lane, int intended_lane, int final_lane, double distance_to_goal, double &goal_distance_cost)
+double BehaviorPlanner::GoalDistanceCost(int goal_lane, int intended_lane, int final_lane, double distance_to_goal)
 {
   // The cost increases with both the distance of intended lane from the goal
   //   and the distance of the final lane from the goal. The cost of being out
   //   of the goal lane also becomes larger as the vehicle approaches the goal.
 
+  double goal_distance_cost;
+
   int delta_d = 2 * goal_lane - intended_lane - final_lane;
   goal_distance_cost = 1 - exp(-(std::abs(delta_d) / distance_to_goal));
+
+  return goal_distance_cost;
 }
 // --------------------------------------------------------------------------------------------------------------------
 
-void BehaviorPlanner::InefficiencyCost(int target_speed, int intended_lane, int final_lane, const std::vector<double> &lane_speeds, double &inefficiency_cost)
+// void BehaviorPlanner::InefficiencyCost(double target_speed, int intended_lane, int final_lane, double &inefficiency_cost)
+void BehaviorPlanner::InefficiencyCost(double target_speed, int intended_lane, double &inefficiency_cost)
 {
   // Cost becomes higher for trajectories with intended lane and final lane
   //   that have traffic slower than target_speed.
 
-  double speed_intended = lane_speeds[intended_lane];
-  double speed_final = lane_speeds[final_lane];
+  assert(target_speed > 0.0);
 
-  inefficiency_cost = (2.0 * target_speed - speed_intended - speed_final) / target_speed;
+  double speed_intended = lane_speeds_[intended_lane];
+  // double speed_final = lane_speeds_[final_lane];
+  // double inefficiency_cost;
+
+  // inefficiency_cost = (2.0 * target_speed - speed_intended - speed_final) / (2.0 * target_speed);
+  inefficiency_cost = (target_speed - speed_intended) / (target_speed);
+
+  // return inefficiency_cost;
 }
 // --------------------------------------------------------------------------------------------------------------------
