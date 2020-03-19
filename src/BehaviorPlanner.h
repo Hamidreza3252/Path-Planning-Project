@@ -37,6 +37,7 @@ public:
   FiniteState state_;
   FiniteState prev_state_;
   double state_duration_;
+  double timer_tracker_2_sec_;
   double speed_buffer_;
   std::vector<double> lane_speeds_;
   int lanes_count;

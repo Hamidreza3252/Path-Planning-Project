@@ -13,6 +13,7 @@ BehaviorPlanner::BehaviorPlanner()
   state_ = FiniteState::kKeepLane;
   vehicle.lane_ = 1; // middle lane
   state_duration_ = 0.0;
+  timer_tracker_2_sec_ = 0.0;
   speed_buffer_ = 0.2; //mph
   lanes_count = 3;
 
@@ -33,9 +34,14 @@ BehaviorPlanner &BehaviorPlanner::GetInstance()
 
 void BehaviorPlanner::ChangeState(FiniteState new_state)
 {
+  if (state_ == new_state)
+  {
+    return;
+  }
+
   prev_state_ = state_;
   state_ = new_state;
-  state_duration_ = 0.0;
+  // state_duration_ = 0.0;
 
   std::cout << "Changing state: " << state_ << std::endl;
 }
@@ -124,12 +130,26 @@ void BehaviorPlanner::HandleHighwayDriving(double end_path_s, double speed_limit
     Accelerate(target_speed, vehicle.action_speed_);
   }
 
-  // every 2 secs
-  if (state_duration_ > 2.0)
+  switch (state_)
   {
+  case FiniteState::kChangeLaneLeft:
+    vehicle.lane_ -= 1;
+
+    ChangeState(FiniteState::kKeepLane);
+    break;
+
+  default:
+    break;
+  }
+
+  // every 2 secs
+  if (timer_tracker_2_sec_ > 2.0)
+  {
+    timer_tracker_2_sec_ = 0.0;
+
     // SpeedCost(vehicle.speed_, speed_limit, speed_cost, recommended_action);
 
-    // chech if we should plan to change lane or we should keep the same lane
+    // chech if we should plan to change lane or we should keep the lane
 
     InefficiencyCost(target_speed, vehicle.lane_, ego_lane_inefficiency_cost);
     std::cout << "ego_lane_inefficiency_cost: " << ego_lane_inefficiency_cost << std::endl;
@@ -137,6 +157,12 @@ void BehaviorPlanner::HandleHighwayDriving(double end_path_s, double speed_limit
     if (vehicle.lane_ > 0)
     {
       InefficiencyCost(target_speed, vehicle.lane_ - 1, left_lane_inefficiency_cost);
+
+      if (state_duration_ > 10.0 && state_duration_ < 10.03)
+      {
+        left_lane_inefficiency_cost = 0.5;
+      }
+
       std::cout << "left_lane_inefficiency_cost: " << left_lane_inefficiency_cost << std::endl;
     }
 
@@ -156,13 +182,16 @@ void BehaviorPlanner::HandleHighwayDriving(double end_path_s, double speed_limit
     }
     else if (min_cost == left_lane_inefficiency_cost)
     {
-      ChangeState(FiniteState::kPrepareChangeLaneLeft);
+      // ChangeState(FiniteState::kPrepareChangeLaneLeft);
+      ChangeState(FiniteState::kChangeLaneLeft);
     }
     else
     {
-      ChangeState(FiniteState::kPrepareChangeLaneRight);
+      // ChangeState(FiniteState::kPrepareChangeLaneRight);
+      ChangeState(FiniteState::kChangeLaneRight);
     }
-    
+
+    std::cout << "state_duration_: " << state_duration_ << std::endl;
     std::cout << std::endl;
   }
 
