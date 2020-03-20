@@ -79,14 +79,13 @@ int main()
 
   // int car_lane = 1;
   // double car_ref_vel = 0.0;  // mph
-  double speed_limit = 50.0; // mph
+  // double speed_limit = 50.0; // mph
   Vehicle &ego_vehicle = behavior_planner.vehicle;
 
   h.onMessage([&map_waypoints_x, &map_waypoints_y, &map_waypoints_s,
                &map_waypoints_dx, &map_waypoints_dy, &behavior_planner,
-               &ego_vehicle,
-               &speed_limit](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
-                                           uWS::OpCode opCode) {
+               &ego_vehicle](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
+                             uWS::OpCode opCode) {
     /*
   h.onMessage([&map_waypoints_x, &map_waypoints_y, &map_waypoints_s,
                &map_waypoints_dx, &map_waypoints_dy, &behavior_planner,
@@ -150,7 +149,7 @@ int main()
 
           // int prev_path_size = previous_path_x.size();
 
-          behavior_planner.HandleHighwayDriving(end_path_s, speed_limit,
+          behavior_planner.HandleHighwayDriving(end_path_s,
                                                 previous_path_x, previous_path_y, map_waypoints_s, map_waypoints_x, map_waypoints_y,
                                                 next_x_vals, next_y_vals);
 

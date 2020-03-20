@@ -7,7 +7,7 @@
 
 // --------------------------------------------------------------------------------------------------------------------
 
-BehaviorPlanner::BehaviorPlanner()
+BehaviorPlanner::BehaviorPlanner(int lanes_count)
 {
   prev_state_ = FiniteState::kKeepLane;
   state_ = FiniteState::kKeepLane;
@@ -15,18 +15,21 @@ BehaviorPlanner::BehaviorPlanner()
   state_duration_ = 0.0;
   timer_tracker_2_sec_ = 0.0;
   speed_buffer_ = 0.2; //mph
-  lanes_count = 3;
+  speed_limit_ = 50.0; // mph
+  // lanes_count = 3;
+  lane_width_ = 4.0; // meter
 
   for (int i = 0; i < lanes_count; ++i)
   {
-    lane_speeds_.push_back(0.0); // mph
+    lane_speeds_.push_back(0.0);       // mph
+    behind_cars_poses_.push_back(0.0); // meter
   }
 }
 // --------------------------------------------------------------------------------------------------------------------
 
 BehaviorPlanner &BehaviorPlanner::GetInstance()
 {
-  static BehaviorPlanner path_planner;
+  static BehaviorPlanner path_planner(3);
 
   return path_planner;
 }
@@ -82,14 +85,14 @@ void BehaviorPlanner::StraightPathSD(std::vector<double> &next_x_vals, std::vect
 }
 // --------------------------------------------------------------------------------------------------------------------
 
-void BehaviorPlanner::HandleHighwayDriving(double end_path_s, double speed_limit,
+void BehaviorPlanner::HandleHighwayDriving(double end_path_s,
                                            const vector<double> &previous_path_x, const vector<double> &previous_path_y,
                                            const vector<double> &map_waypoints_s, const vector<double> &map_waypoints_x, const vector<double> &map_waypoints_y,
                                            vector<double> &next_x_vals, vector<double> &next_y_vals)
 {
   bool too_close = false;
-  double next_car_spped;
-  double target_speed = speed_limit - speed_buffer_;
+  double front_car_speed;
+  double target_speed = speed_limit_ - speed_buffer_;
   // double car_ref_vel = 0.0;
   double car_s;
   // double speed_limit_ref = speed_limit;r
@@ -111,16 +114,18 @@ void BehaviorPlanner::HandleHighwayDriving(double end_path_s, double speed_limit
   double ego_lane_inefficiency_cost = 1.0;
   double min_cost;
   SpeedCostReductionAction recommended_action;
+  int lanes_count = lane_speeds_.size();
 
   // this check will be done with the next car, independent of the state of the ego car
-  CheckCollision(car_s, 4.0, prev_path_size, too_close, next_car_spped);
+  // CheckCollision(car_s, prev_path_size, too_close, front_car_speed);
+  UpdateLanesInfo(car_s, prev_path_size, too_close, front_car_speed);
 
   // safety critical
   if (too_close)
   {
     // std::cout << "vehicle.speed_: " << vehicle.speed_ << std::endl;
 
-    target_speed = std::min(next_car_spped, target_speed);
+    target_speed = std::min(front_car_speed, target_speed);
     // std::cout << "safe_speed: " << safe_speed << std::endl;
 
     Decelerate(target_speed, vehicle.action_speed_);
@@ -203,6 +208,67 @@ void BehaviorPlanner::HandleHighwayDriving(double end_path_s, double speed_limit
 }
 // --------------------------------------------------------------------------------------------------------------------
 
+void BehaviorPlanner::UpdateLanesInfo(double car_s, int prev_path_size, bool &too_close, double &front_car_speed)
+{
+  too_close = false;
+  front_car_speed = 0.0;
+
+  // double prev_next_car_speed = MAXFLOAT;
+  // float lane_width_2 = 0.5 * lane_width_;
+  // double car_lane_dist = lane_width_2 + lane_width_ * vehicle.lane_;
+  int lanes_count = lane_speeds_.size();
+
+  for (int lane_index = 0; lane_index < lanes_count; ++lane_index)
+  {
+    lane_speeds_[lane_index] = speed_limit_;
+    behind_cars_poses_[lane_index] = -1.0;
+  }
+
+  // find ref_v to use
+  // for (int i = 0; i < sensor_fusion.size(); ++i)
+  for (auto &sensor_data : vehicle.sensor_fusions_)
+  {
+    // float d = sensor_fusion[i][6];
+    float neighbor_car_d = sensor_data[6];
+    int lane_index = int(neighbor_car_d / lane_width_);
+    // for (int lane_index = 0; lane_index < lanes_count; ++lane_index)
+    float d_right_bound = lane_width_ * (lane_index + 1);
+    float d_left_bound = lane_width_ * (lane_index);
+    double vx = sensor_data[3];
+    double vy = sensor_data[4];
+    double car_speed = sqrt(vx * vx + vy * vy);
+    double neighbor_car_s = sensor_data[5];
+
+    double prev_neighbor_car_s = neighbor_car_s;
+
+    if (lane_index == vehicle.lane_)
+    {
+      // predict where the car will be in future
+      neighbor_car_s += prev_path_size * 0.02 * car_speed;
+
+      // also check if the car's last position was behind us
+      if (((neighbor_car_s > car_s) && (neighbor_car_s - car_s) < 30.0) && (car_s < prev_neighbor_car_s))
+      {
+        //vehicle.speed_ - next_car_speed
+        front_car_speed = vehicle.speed_ - car_speed;
+        // front_car_speed = car_speed;
+        lane_speeds_[lane_index] = front_car_speed;
+        behind_cars_poses_[lane_index] = neighbor_car_s;
+        too_close = true;
+      }
+    }
+    else
+    {
+      if ((neighbor_car_s < (car_s - 4.0)) && (car_s - neighbor_car_s) < 30.0)
+      {
+        lane_speeds_[lane_index] = car_speed;
+        behind_cars_poses_[lane_index] = neighbor_car_s;
+      }
+    }
+  }
+}
+// --------------------------------------------------------------------------------------------------------------------
+
 /**
  * Chekcing for collision with the front car in the same lane
  * @sensor_fusions: all sensor fusion data
@@ -214,7 +280,7 @@ void BehaviorPlanner::HandleHighwayDriving(double end_path_s, double speed_limit
  * @next_car_speed: (output) the speed of the next car in the same lane
  */
 
-void BehaviorPlanner::CheckCollision(double car_s, double lane_width, int prev_path_size, bool &too_close, double &next_car_speed)
+void BehaviorPlanner::CheckCollision(double car_s, int prev_path_size, bool &too_close, double &next_car_speed)
 {
 
   // bool too_close = false;
@@ -223,7 +289,7 @@ void BehaviorPlanner::CheckCollision(double car_s, double lane_width, int prev_p
   next_car_speed = 0.0;
 
   // double prev_next_car_speed = MAXFLOAT;
-  float lane_width_2 = 0.5 * lane_width;
+  float lane_width_2 = 0.5 * lane_width_;
 
   // find ref_v to use
   // for (int i = 0; i < sensor_fusion.size(); ++i)
@@ -233,8 +299,8 @@ void BehaviorPlanner::CheckCollision(double car_s, double lane_width, int prev_p
     float d = sensor_data[6];
 
     // car is in my lane
-    if (d < (lane_width_2 + lane_width * vehicle.lane_ + lane_width_2) &&
-        d > (lane_width_2 + lane_width * vehicle.lane_ - lane_width_2))
+    if (d < (lane_width_2 + lane_width_ * vehicle.lane_ + lane_width_2) &&
+        d > (lane_width_2 + lane_width_ * vehicle.lane_ - lane_width_2))
     {
       double vx = sensor_data[3];
       double vy = sensor_data[4];

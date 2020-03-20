@@ -23,7 +23,7 @@ enum SpeedCostReductionAction
 class BehaviorPlanner
 {
 private:
-  BehaviorPlanner();
+  BehaviorPlanner(int lanes_count);
 
   // variables
   // static PathPlanner path_planner_;
@@ -38,9 +38,12 @@ public:
   FiniteState prev_state_;
   double state_duration_;
   double timer_tracker_2_sec_;
+  double speed_limit_;
   double speed_buffer_;
+  double lane_width_;
   std::vector<double> lane_speeds_;
-  int lanes_count;
+  std::vector<double> behind_cars_poses_;
+  // int lanes_count;
   // int lane_;
 
   // Functions decleration
@@ -53,13 +56,14 @@ public:
                       double car_s, double car_d, double car_yaw, double lane_width,
                       const std::vector<double> &map_waypoints_s, const std::vector<double> &map_waypoints_x, const std::vector<double> &map_waypoints_y,
                       double dist_inc, int path_points_count);
-  void HandleHighwayDriving(double end_path_s, double speed_limit,
+  void HandleHighwayDriving(double end_path_s, 
                             const std::vector<double> &previous_path_x, const std::vector<double> &previous_path_y,
                             const std::vector<double> &map_waypoints_s, const std::vector<double> &map_waypoints_x, const std::vector<double> &map_waypoints_y,
                             std::vector<double> &next_x_vals, std::vector<double> &next_y_vals);
 
 private:
-  void CheckCollision(double car_s, double lane_width, int prev_path_size, bool &too_close, double &next_car_speed);
+  void UpdateLanesInfo(double car_s, int prev_path_size, bool &too_close, double &front_car_speed);
+  void CheckCollision(double car_s, int prev_path_size, bool &too_close, double &next_car_speed);
 
   void UpdateLanesSpeeds(void);
 
@@ -70,7 +74,7 @@ private:
 
   void Decelerate(double lower_bound_vel, double &car_ref_vel);
   void Accelerate(double upper_bound_vel, double &car_ref_vel);
-  
+
   void SpeedCost(double ego_car_speed, double speed_limit, double &speed_cost, SpeedCostReductionAction &recommended_action);
   double GoalDistanceCost(int goal_lane, int intended_lane, int final_lane, double distance_to_goal);
   // void InefficiencyCost(double target_speed, int intended_lane, int final_lane, double &inefficiency_cost);
