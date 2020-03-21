@@ -13,6 +13,7 @@ set(CMAKE_CXX_COMPILER_ID "GNU")
 
 # The include file search paths:
 set(CMAKE_CXX_TARGET_INCLUDE_PATH
+  "/usr/local/include"
   "/usr/local/opt/openssl/include"
   "../../includes/Eigen"
   )

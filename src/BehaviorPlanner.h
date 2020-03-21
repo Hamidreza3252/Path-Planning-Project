@@ -11,6 +11,7 @@ enum FiniteState
   kChangeLaneLeft,
   kPrepareChangeLaneRight,
   kChangeLaneRight,
+  kAvoidCollision
 };
 
 enum SpeedCostReductionAction
@@ -41,8 +42,13 @@ public:
   double speed_limit_;
   double speed_buffer_;
   double lane_width_;
-  std::vector<double> lane_speeds_;
-  std::vector<double> behind_cars_poses_;
+  std::vector<double> front_cars_speeds_;
+  std::vector<double> behind_cars_speeds_;
+  std::vector<double> front_cars_s_poses_;
+  std::vector<double> behind_cars_s_poses_;
+  std::vector<double> lane_speed_costs_;
+  // std::vector<double> left_lane_change_costs_;
+  // std::vector<double> right_lane_change_costs_;
   // int lanes_count;
   // int lane_;
 
@@ -62,10 +68,8 @@ public:
                             std::vector<double> &next_x_vals, std::vector<double> &next_y_vals);
 
 private:
-  void UpdateLanesInfo(double car_s, int prev_path_size, bool &too_close, double &front_car_speed);
+  void UpdateLanesInfo(double car_s, int prev_path_size, FiniteState &next_state, double &front_car_speed);
   void CheckCollision(double car_s, int prev_path_size, bool &too_close, double &next_car_speed);
-
-  void UpdateLanesSpeeds(void);
 
   void GeneratePath(double car_s, int prev_path_size,
                     const std::vector<double> &previous_path_x, const std::vector<double> &previous_path_y,

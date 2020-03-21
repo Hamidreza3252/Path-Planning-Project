@@ -21,8 +21,13 @@ BehaviorPlanner::BehaviorPlanner(int lanes_count)
 
   for (int i = 0; i < lanes_count; ++i)
   {
-    lane_speeds_.push_back(0.0);       // mph
-    behind_cars_poses_.push_back(0.0); // meter
+    front_cars_speeds_.push_back(0.0);   // mph
+    behind_cars_speeds_.push_back(0.0);  // mph
+    front_cars_s_poses_.push_back(0.0);  // meter
+    behind_cars_s_poses_.push_back(0.0); // meter
+    lane_speed_costs_.push_back(1.0);
+    // left_lane_change_costs_.push_back(1.0);
+    // right_lane_change_costs_.push_back(1.0);
   }
 }
 // --------------------------------------------------------------------------------------------------------------------
@@ -90,7 +95,8 @@ void BehaviorPlanner::HandleHighwayDriving(double end_path_s,
                                            const vector<double> &map_waypoints_s, const vector<double> &map_waypoints_x, const vector<double> &map_waypoints_y,
                                            vector<double> &next_x_vals, vector<double> &next_y_vals)
 {
-  bool too_close = false;
+  FiniteState next_state;
+  // bool too_close = false;
   double front_car_speed;
   double target_speed = speed_limit_ - speed_buffer_;
   // double car_ref_vel = 0.0;
@@ -114,14 +120,14 @@ void BehaviorPlanner::HandleHighwayDriving(double end_path_s,
   double ego_lane_inefficiency_cost = 1.0;
   double min_cost;
   SpeedCostReductionAction recommended_action;
-  int lanes_count = lane_speeds_.size();
+  int lanes_count = front_cars_speeds_.size();
 
   // this check will be done with the next car, independent of the state of the ego car
   // CheckCollision(car_s, prev_path_size, too_close, front_car_speed);
-  UpdateLanesInfo(car_s, prev_path_size, too_close, front_car_speed);
+  UpdateLanesInfo(car_s, prev_path_size, next_state, front_car_speed);
 
   // safety critical
-  if (too_close)
+  if (next_state == FiniteState::kAvoidCollision)
   {
     // std::cout << "vehicle.speed_: " << vehicle.speed_ << std::endl;
 
@@ -135,6 +141,7 @@ void BehaviorPlanner::HandleHighwayDriving(double end_path_s,
     Accelerate(target_speed, vehicle.action_speed_);
   }
 
+  /*
   switch (state_)
   {
   case FiniteState::kChangeLaneLeft:
@@ -146,7 +153,9 @@ void BehaviorPlanner::HandleHighwayDriving(double end_path_s,
   default:
     break;
   }
+  */
 
+  /*
   // every 2 secs
   if (timer_tracker_2_sec_ > 2.0)
   {
@@ -199,6 +208,7 @@ void BehaviorPlanner::HandleHighwayDriving(double end_path_s,
     std::cout << "state_duration_: " << state_duration_ << std::endl;
     std::cout << std::endl;
   }
+  */
 
   state_duration_ += 0.02; //sec
 
@@ -208,20 +218,27 @@ void BehaviorPlanner::HandleHighwayDriving(double end_path_s,
 }
 // --------------------------------------------------------------------------------------------------------------------
 
-void BehaviorPlanner::UpdateLanesInfo(double car_s, int prev_path_size, bool &too_close, double &front_car_speed)
+void BehaviorPlanner::UpdateLanesInfo(double car_s, int prev_path_size, FiniteState &next_state, double &front_car_speed)
 {
-  too_close = false;
+  next_state = FiniteState::kKeepLane;
   front_car_speed = 0.0;
 
   // double prev_next_car_speed = MAXFLOAT;
   // float lane_width_2 = 0.5 * lane_width_;
   // double car_lane_dist = lane_width_2 + lane_width_ * vehicle.lane_;
-  int lanes_count = lane_speeds_.size();
+  int lanes_count = front_cars_speeds_.size();
+  SpeedCostReductionAction speed_action;
+  // vector<double> min_lane_speeds;
+  vector<double> min_lane_s_poses;
 
   for (int lane_index = 0; lane_index < lanes_count; ++lane_index)
   {
-    lane_speeds_[lane_index] = speed_limit_;
-    behind_cars_poses_[lane_index] = -1.0;
+    front_cars_speeds_[lane_index] = speed_limit_;
+    behind_cars_speeds_[lane_index] = 0.0;
+    front_cars_s_poses_[lane_index] = -1.0;
+    behind_cars_s_poses_[lane_index] = -1.0;
+    // min_lane_speeds.push_back(1e6); //mph
+    min_lane_s_poses.push_back(1e6); //meter
   }
 
   // find ref_v to use
@@ -239,31 +256,76 @@ void BehaviorPlanner::UpdateLanesInfo(double car_s, int prev_path_size, bool &to
     double car_speed = sqrt(vx * vx + vy * vy);
     double neighbor_car_s = sensor_data[5];
 
-    double prev_neighbor_car_s = neighbor_car_s;
+    double neighbor_car_prev_s = neighbor_car_s;
 
-    if (lane_index == vehicle.lane_)
+    neighbor_car_s += prev_path_size * 0.02 * car_speed;
+
+    double delta_s = neighbor_car_s - car_s;
+    double delta_prev_s = neighbor_car_prev_s - car_s;
+
+    if (delta_s > 0.0 && delta_prev_s > 0.0)
     {
-      // predict where the car will be in future
-      neighbor_car_s += prev_path_size * 0.02 * car_speed;
+      // vehicle.speed_ - car_speed;
+      // front_car_speed = vehicle.speed_ - car_speed;
+      front_car_speed = car_speed;
 
-      // also check if the car's last position was behind us
-      if (((neighbor_car_s > car_s) && (neighbor_car_s - car_s) < 30.0) && (car_s < prev_neighbor_car_s))
+      if (delta_prev_s < 50.0)
       {
-        //vehicle.speed_ - next_car_speed
-        front_car_speed = vehicle.speed_ - car_speed;
-        // front_car_speed = car_speed;
-        lane_speeds_[lane_index] = front_car_speed;
-        behind_cars_poses_[lane_index] = neighbor_car_s;
-        too_close = true;
+        min_lane_s_poses[lane_index] = neighbor_car_s;
+
+        front_cars_speeds_[lane_index] = front_car_speed;
+        front_cars_s_poses_[lane_index] = neighbor_car_s;
+
+        // std::cout << "front_car_speed: " << front_car_speed << std::endl;
+      }
+
+      if ((lane_index == vehicle.lane_) && (delta_s < 30.0))
+      {
+        next_state = FiniteState::kAvoidCollision;
+
+        std::cout << "kAvoidCollision: " << std::endl;
       }
     }
-    else
+    else if (delta_prev_s < 0.0 && delta_prev_s > -50.0)
     {
-      if ((neighbor_car_s < (car_s - 4.0)) && (car_s - neighbor_car_s) < 30.0)
+      behind_cars_speeds_[lane_index] = car_speed;
+      behind_cars_s_poses_[lane_index] = neighbor_car_s;
+
+      // std::cout << "behind_car_speed: " << car_speed << std::endl;
+    }
+  }
+
+  for (int lane_index = 0; lane_index < lanes_count; ++lane_index)
+  {
+    InefficiencyCost(speed_limit_, lane_index, lane_speed_costs_[lane_index]);
+  }
+
+  std::vector<double>::iterator min_iterator = std::min_element(lane_speed_costs_.begin(), lane_speed_costs_.end());
+  // std::cout << "lane_speed_costs_: " << lane_speed_costs_[0] << "   " << lane_speed_costs_[1] << "   " << lane_speed_costs_[2] << std::endl;
+  int target_lane = std::distance(lane_speed_costs_.begin(), min_iterator);
+  int delta_lane = target_lane - vehicle.lane_;
+
+  // if ((neighbor_cars_s_poses_[target_lane] != -1) && (target_lane != vehicle.lane_) && (lane_speed_costs_[target_lane] != lane_speed_costs_[vehicle.lane_]))
+  if ((std::abs(delta_lane) == 1) && (lane_speed_costs_[target_lane] != lane_speed_costs_[vehicle.lane_]))
+  {
+    // std::cout << "Suggested lane: " << target_lane << std::endl;
+
+    if ((car_s - behind_cars_s_poses_[target_lane]) > 10.0)
+    {
+      if (delta_lane < 0)
       {
-        lane_speeds_[lane_index] = car_speed;
-        behind_cars_poses_[lane_index] = neighbor_car_s;
+        next_state = FiniteState::kChangeLaneLeft;
+        std::cout << "kChangeLaneLeft" << std::endl;
       }
+      else
+      {
+        next_state = FiniteState::kChangeLaneRight;
+        std::cout << "kChangeLaneRight" << std::endl;
+      }
+
+      vehicle.lane_ = target_lane;
+      
+      // std::cout << "Go to lane: " << target_lane << std::endl;
     }
   }
 }
@@ -335,13 +397,6 @@ void BehaviorPlanner::CheckCollision(double car_s, int prev_path_size, bool &too
     }
   }
 }
-// --------------------------------------------------------------------------------------------------------------------
-
-void BehaviorPlanner::UpdateLanesSpeeds(void)
-{
-  // lane_speeds_
-}
-
 // --------------------------------------------------------------------------------------------------------------------
 
 void BehaviorPlanner::GeneratePath(double car_s, int prev_path_size,
@@ -533,7 +588,7 @@ void BehaviorPlanner::InefficiencyCost(double target_speed, int intended_lane, d
 
   assert(target_speed > 0.0);
 
-  double speed_intended = lane_speeds_[intended_lane];
+  double speed_intended = front_cars_speeds_[intended_lane];
   // double speed_final = lane_speeds_[final_lane];
   // double inefficiency_cost;
 
