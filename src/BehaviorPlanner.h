@@ -4,16 +4,6 @@
 #include <vector>
 #include "Vehicle.h"
 
-enum FiniteState
-{
-  kKeepLane = 0,
-  kPrepareChangeLaneLeft,
-  kChangeLaneLeft,
-  kPrepareChangeLaneRight,
-  kChangeLaneRight,
-  kAvoidCollision
-};
-
 enum SpeedCostReductionAction
 {
   // kMaintainVel = 0,
@@ -24,6 +14,9 @@ enum SpeedCostReductionAction
 class BehaviorPlanner
 {
 private:
+  // Variables decleration
+  double timer_tracker_2_sec_;
+
   BehaviorPlanner(int lanes_count);
 
   // variables
@@ -35,10 +28,6 @@ public:
   static constexpr double kStopCost = 0.9;
   // static constexpr double kDefaultInefficiencyCost = 1.0;
   Vehicle vehicle;
-  FiniteState state_;
-  FiniteState prev_state_;
-  double state_duration_;
-  double timer_tracker_2_sec_;
   double speed_limit_;
   double speed_buffer_;
   double lane_width_;
@@ -65,7 +54,7 @@ public:
                             const std::vector<double> &previous_path_x, const std::vector<double> &previous_path_y,
                             const std::vector<double> &map_waypoints_s, const std::vector<double> &map_waypoints_x, const std::vector<double> &map_waypoints_y,
                             std::vector<double> &next_x_vals, std::vector<double> &next_y_vals);
-  void ChangeState(FiniteState &new_state, double car_s);
+  void ChangeState(FiniteState new_state, double car_s);
 
 private:
   void UpdateLanesInfo(double car_s, int prev_path_size, FiniteState &next_state, double &front_car_speed);

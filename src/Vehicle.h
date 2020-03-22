@@ -9,6 +9,16 @@
 // using std::string;
 // using std::vector;
 
+enum FiniteState
+{
+  kKeepLane = 0,
+  kPrepareChangeLaneLeft,
+  kChangeLaneLeft,
+  kPrepareChangeLaneRight,
+  kChangeLaneRight,
+  kAvoidCollision
+};
+
 class Vehicle
 {
 private:
@@ -26,6 +36,9 @@ public:
   double speed_;
   double action_speed_;
   int lane_;
+  FiniteState state_;
+  FiniteState prev_state_;
+  double state_duration_;
 
   // Sensor Fusion Data, a list of all other cars on the same side of the road.
   std::vector<std::vector <double>> sensor_fusions_;

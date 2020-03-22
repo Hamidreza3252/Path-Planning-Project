@@ -4,6 +4,9 @@
 Vehicle::Vehicle()
 {
   action_speed_ = 0.0;
+  state_duration_ = 0.0;
+  prev_state_ = FiniteState::kKeepLane;
+  state_ = FiniteState::kKeepLane;
 }
 
 // --------------------------------------------------------------------------------------------------------------------
