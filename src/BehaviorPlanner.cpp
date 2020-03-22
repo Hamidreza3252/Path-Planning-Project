@@ -43,8 +43,8 @@ void BehaviorPlanner::HandleHighwayDriving(double end_path_s,
                                            vector<double> &next_x_vals, vector<double> &next_y_vals)
 {
   bool change_state_allowed;
-  FiniteState next_state;
-  // bool too_close = false;
+  // FiniteState next_state;
+  bool too_close = false;
   double front_car_speed;
   double target_speed = speed_limit_ - speed_buffer_;
   // double car_ref_vel = 0.0;
@@ -71,11 +71,12 @@ void BehaviorPlanner::HandleHighwayDriving(double end_path_s,
   int lanes_count = front_cars_speeds_.size();
 
   // this check will be done with the next car, independent of the state of the ego car
-  UpdateLanesInfo(car_s, prev_path_size, next_state, front_car_speed);
-  ChangeState(next_state, car_s);
+  UpdateLanesInfo(car_s, prev_path_size, too_close, front_car_speed);
+  UpdateState(car_s);
 
   // safety critical
-  if (next_state == FiniteState::kAvoidCollision)
+  // if (next_state == FiniteState::kAvoidCollision)
+  if (too_close)
   {
     // std::cout << "vehicle.speed_: " << vehicle.speed_ << std::endl;
 
@@ -112,9 +113,11 @@ void BehaviorPlanner::HandleHighwayDriving(double end_path_s,
 }
 // --------------------------------------------------------------------------------------------------------------------
 
-void BehaviorPlanner::UpdateLanesInfo(double car_s, int prev_path_size, FiniteState &next_state, double &front_car_speed)
+// void BehaviorPlanner::UpdateLanesInfo(double car_s, int prev_path_size, FiniteState &next_state, double &front_car_speed)
+void BehaviorPlanner::UpdateLanesInfo(double car_s, int prev_path_size, bool &too_close, double &front_car_speed)
 {
-  next_state = FiniteState::kKeepLane;
+  // next_state = FiniteState::kKeepLane;
+  too_close = false;
   front_car_speed = 0.0;
 
   // double prev_next_car_speed = MAXFLOAT;
@@ -165,17 +168,17 @@ void BehaviorPlanner::UpdateLanesInfo(double car_s, int prev_path_size, FiniteSt
     // if (delta_s > 0.0 && delta_prev_s > 0.0)
     if (delta_prev_s > 0.0)
     {
-      // vehicle.speed_ - car_speed;
       // front_car_speed = vehicle.speed_ - car_speed;
       front_car_speed = car_speed;
 
       if (std::abs(delta_s) < 50.0)
       {
-        std::cout << "delta_s: " << delta_s << "  -  delta_prev_s: " << delta_prev_s << std::endl;
+        // std::cout << "lane: " << lane_index << "  -  delta_s: " << delta_s << "  -  delta_prev_s: " << delta_prev_s << std::endl;
 
         if (lane_index == vehicle.lane_ && std::abs(delta_s) < 30.0)
         {
-          next_state = FiniteState::kAvoidCollision;
+          // next_state = FiniteState::kAvoidCollision;
+          too_close = true;
 
           // std::cout << "delta_s: " << delta_s << "  -  delta_prev_s: " << delta_prev_s << std::endl;
         }
@@ -192,16 +195,20 @@ void BehaviorPlanner::UpdateLanesInfo(double car_s, int prev_path_size, FiniteSt
       }
     }
     // else if (delta_s <= 0.0 && delta_s > -50.0)
-    else if (delta_s <= 0.0 && delta_s > -50.0)
+    else
     {
-      if (neighbor_car_s > max_lane_s_poses[lane_index])
+      if (delta_s <= 0.0 && delta_s > -50.0)
       {
-        max_lane_s_poses[lane_index] = neighbor_car_s;
+        // std::cout << "lane: " << lane_index << "  -  delta_s: " << delta_s << "  -  delta_prev_s: " << delta_prev_s << std::endl;
 
-        behind_cars_speeds_[lane_index] = car_speed;
-        behind_cars_s_poses_[lane_index] = neighbor_car_s;
+        if (neighbor_car_s > max_lane_s_poses[lane_index])
+        {
+          max_lane_s_poses[lane_index] = neighbor_car_s;
+
+          behind_cars_speeds_[lane_index] = car_speed;
+          behind_cars_s_poses_[lane_index] = neighbor_car_s;
+        }
       }
-
       // std::cout << "behind_car_speed: " << car_speed << std::endl;
     }
   }
@@ -219,7 +226,8 @@ void BehaviorPlanner::UpdateLanesInfo(double car_s, int prev_path_size, FiniteSt
 }
 // --------------------------------------------------------------------------------------------------------------------
 
-void BehaviorPlanner::ChangeState(FiniteState new_state, double car_s)
+// void BehaviorPlanner::UpdateState(FiniteState new_state, double car_s)
+void BehaviorPlanner::UpdateState(double car_s)
 {
   /*
   if (state_ == new_state)
@@ -228,6 +236,7 @@ void BehaviorPlanner::ChangeState(FiniteState new_state, double car_s)
   }
   */
 
+  /*
   if (new_state == kAvoidCollision)
   {
     vehicle.prev_state_ = vehicle.state_;
@@ -237,8 +246,9 @@ void BehaviorPlanner::ChangeState(FiniteState new_state, double car_s)
 
     return;
   }
+  */
 
-  if (timer_tracker_2_sec_ < 2.0)
+  if (timer_tracker_2_sec_ < 4.0)
   {
     /*
     if (new_state == kAvoidCollision)
@@ -268,41 +278,52 @@ void BehaviorPlanner::ChangeState(FiniteState new_state, double car_s)
   int target_lane = std::distance(lane_speed_costs_.begin(), min_iterator);
   int delta_lane = target_lane - vehicle.lane_;
 
+  /*
   if (std::abs(delta_lane) == 2)
   {
     std::cout << "2" << std::endl;
   }
+  */
 
   // if ((neighbor_cars_s_poses_[target_lane] != -1) && (target_lane != vehicle.lane_) && (lane_speed_costs_[target_lane] != lane_speed_costs_[vehicle.lane_]))
   if ((std::abs(delta_lane) == 1) && (lane_speed_costs_[target_lane] != lane_speed_costs_[vehicle.lane_]))
   {
     std::cout << "Suggested lane: " << target_lane << std::endl;
 
-    if ((behind_cars_s_poses_[target_lane] == -1) || (car_s - behind_cars_s_poses_[target_lane]) > 15.0)
+    // std::cout << "vehicle.s_: " << vehicle.s_ << "  -  behind_cars_s_poses_: " << behind_cars_s_poses_[target_lane] << std::endl;
+    // std::cout << "car_s: " << car_s << "  -  front_cars_s_poses_: " << front_cars_s_poses_[target_lane] << std::endl;
+
+    // if (((behind_cars_s_poses_[target_lane] == -1) || ((front_cars_s_poses_[target_lane] == -1))) ||
+    //     (((vehicle.s_ - behind_cars_s_poses_[target_lane]) > 15.0) && (front_cars_s_poses_[target_lane] - vehicle.s_) > 15.0))
+    if (vehicle.speed_ > 30.0 &&
+        ((behind_cars_s_poses_[target_lane] == -1) || ((vehicle.s_ - behind_cars_s_poses_[target_lane]) > 10.0)) &&
+        ((front_cars_s_poses_[target_lane] == -1) || ((front_cars_s_poses_[target_lane] - car_s) > 10.0)))
     {
       vehicle.prev_state_ = vehicle.state_;
 
       if (delta_lane < 0)
       {
-        new_state = FiniteState::kChangeLaneLeft;
+        vehicle.state_ = FiniteState::kChangeLaneLeft;
         std::cout << "kChangeLaneLeft" << std::endl;
       }
       else
       {
-        new_state = FiniteState::kChangeLaneRight;
+        vehicle.state_ = FiniteState::kChangeLaneRight;
         std::cout << "kChangeLaneRight" << std::endl;
       }
 
-      std::cout << "car_s: " << car_s << "  -  behind_cars_s_poses_: " << behind_cars_s_poses_[target_lane] << std::endl;
+      // std::cout << "vehicle.s_: " << vehicle.s_ << "  -  behind_cars_s_poses_: " << behind_cars_s_poses_[target_lane] << std::endl;
+      // std::cout << "car_s: " << car_s << "  -  front_cars_s_poses_: " << front_cars_s_poses_[target_lane] << std::endl;
 
       vehicle.lane_ = target_lane;
 
       // std::cout << "Go to lane: " << target_lane << std::endl;
     }
 
-    if (vehicle.state_ != new_state)
+    if (vehicle.prev_state_ != vehicle.state_)
     {
       timer_tracker_2_sec_ = 0.0;
+      // vehicle.state_ = new_state;
     }
   }
 }
@@ -433,7 +454,7 @@ void BehaviorPlanner::GeneratePath(double car_s, int prev_path_size,
 void BehaviorPlanner::Decelerate(double lower_bound_vel, double &car_ref_vel)
 {
   // 0.224 ~ 5 m/s
-  double decelerate_value = 0.224 / 2.5;
+  double decelerate_value = 0.224 / 2.0;
   car_ref_vel = std::max<double>(car_ref_vel - decelerate_value, lower_bound_vel);
 }
 // --------------------------------------------------------------------------------------------------------------------

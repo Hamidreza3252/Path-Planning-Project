@@ -54,10 +54,11 @@ public:
                             const std::vector<double> &previous_path_x, const std::vector<double> &previous_path_y,
                             const std::vector<double> &map_waypoints_s, const std::vector<double> &map_waypoints_x, const std::vector<double> &map_waypoints_y,
                             std::vector<double> &next_x_vals, std::vector<double> &next_y_vals);
-  void ChangeState(FiniteState new_state, double car_s);
+  // void UpdateState(FiniteState new_state, double car_s);
+  void UpdateState(double car_s);
 
 private:
-  void UpdateLanesInfo(double car_s, int prev_path_size, FiniteState &next_state, double &front_car_speed);
+  void UpdateLanesInfo(double car_s, int prev_path_size, bool &too_close, double &front_car_speed);
   void CheckCollision(double car_s, int prev_path_size, bool &too_close, double &next_car_speed);
 
   void GeneratePath(double car_s, int prev_path_size,
