@@ -54,7 +54,7 @@ public:
 
   // Functions decleration
   static BehaviorPlanner &GetInstance();
-  void ChangeState(FiniteState new_state);
+  void ChangeState(FiniteState new_state, double car_s);
   void StraightPathXY(std::vector<double> &next_x_vals, std::vector<double> &next_y_vals,
                       double car_x, double car_y, double car_yaw, double dist_inc, int path_points_count);
 

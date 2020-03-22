@@ -40,61 +40,12 @@ BehaviorPlanner &BehaviorPlanner::GetInstance()
 }
 // --------------------------------------------------------------------------------------------------------------------
 
-void BehaviorPlanner::ChangeState(FiniteState new_state)
-{
-  if (state_ == new_state)
-  {
-    return;
-  }
-
-  prev_state_ = state_;
-  state_ = new_state;
-  // state_duration_ = 0.0;
-
-  std::cout << "Changing state: " << state_ << std::endl;
-}
-// --------------------------------------------------------------------------------------------------------------------
-
-void BehaviorPlanner::StraightPathXY(std::vector<double> &next_x_vals, std::vector<double> &next_y_vals,
-                                     double car_x, double car_y, double car_yaw, double dist_inc, int path_points_count)
-{
-  for (int i = 0; i < path_points_count; ++i)
-  {
-    next_x_vals.push_back(car_x + (dist_inc * i) * cos(HandyModules::Deg2Rad(car_yaw)));
-    next_y_vals.push_back(car_y + (dist_inc * i) * sin(HandyModules::Deg2Rad(car_yaw)));
-  }
-}
-// --------------------------------------------------------------------------------------------------------------------
-
-void BehaviorPlanner::StraightPathSD(std::vector<double> &next_x_vals, std::vector<double> &next_y_vals,
-                                     double car_s, double car_d, double car_yaw, double lane_width,
-                                     const vector<double> &map_waypoints_s, const vector<double> &map_waypoints_x, const vector<double> &map_waypoints_y,
-                                     double dist_inc, int path_points_count)
-{
-  double car_next_s;
-  double car_next_d;
-  double car_x;
-  double car_y;
-  vector<double> car_xy;
-
-  for (int i = 0; i < path_points_count; ++i)
-  {
-    car_next_s = car_s + (i + 1) * dist_inc;
-    car_next_d = car_d;
-
-    car_xy = HandyModules::GetXY(car_next_s, car_next_d, map_waypoints_s, map_waypoints_x, map_waypoints_y);
-
-    next_x_vals.push_back(car_xy[0]);
-    next_y_vals.push_back(car_xy[1]);
-  }
-}
-// --------------------------------------------------------------------------------------------------------------------
-
 void BehaviorPlanner::HandleHighwayDriving(double end_path_s,
                                            const vector<double> &previous_path_x, const vector<double> &previous_path_y,
                                            const vector<double> &map_waypoints_s, const vector<double> &map_waypoints_x, const vector<double> &map_waypoints_y,
                                            vector<double> &next_x_vals, vector<double> &next_y_vals)
 {
+  bool change_state_allowed;
   FiniteState next_state;
   // bool too_close = false;
   double front_car_speed;
@@ -123,8 +74,8 @@ void BehaviorPlanner::HandleHighwayDriving(double end_path_s,
   int lanes_count = front_cars_speeds_.size();
 
   // this check will be done with the next car, independent of the state of the ego car
-  // CheckCollision(car_s, prev_path_size, too_close, front_car_speed);
   UpdateLanesInfo(car_s, prev_path_size, next_state, front_car_speed);
+  ChangeState(next_state, car_s);
 
   // safety critical
   if (next_state == FiniteState::kAvoidCollision)
@@ -132,7 +83,7 @@ void BehaviorPlanner::HandleHighwayDriving(double end_path_s,
     // std::cout << "vehicle.speed_: " << vehicle.speed_ << std::endl;
 
     target_speed = std::min(front_car_speed, target_speed);
-    // std::cout << "safe_speed: " << safe_speed << std::endl;
+    // std::cout << "safe_speed: " << target_speed << std::endl;
 
     Decelerate(target_speed, vehicle.action_speed_);
   }
@@ -155,62 +106,8 @@ void BehaviorPlanner::HandleHighwayDriving(double end_path_s,
   }
   */
 
-  /*
-  // every 2 secs
-  if (timer_tracker_2_sec_ > 2.0)
-  {
-    timer_tracker_2_sec_ = 0.0;
-
-    // SpeedCost(vehicle.speed_, speed_limit, speed_cost, recommended_action);
-
-    // chech if we should plan to change lane or we should keep the lane
-
-    InefficiencyCost(target_speed, vehicle.lane_, ego_lane_inefficiency_cost);
-    std::cout << "ego_lane_inefficiency_cost: " << ego_lane_inefficiency_cost << std::endl;
-
-    if (vehicle.lane_ > 0)
-    {
-      InefficiencyCost(target_speed, vehicle.lane_ - 1, left_lane_inefficiency_cost);
-
-      if (state_duration_ > 10.0 && state_duration_ < 10.03)
-      {
-        left_lane_inefficiency_cost = 0.5;
-      }
-
-      std::cout << "left_lane_inefficiency_cost: " << left_lane_inefficiency_cost << std::endl;
-    }
-
-    min_cost = std::min(ego_lane_inefficiency_cost, left_lane_inefficiency_cost);
-
-    if (vehicle.lane_ < lanes_count - 1)
-    {
-      InefficiencyCost(target_speed, vehicle.lane_ + 1, right_lane_inefficiency_cost);
-      std::cout << "right_lane_inefficiency_cost: " << right_lane_inefficiency_cost << std::endl;
-    }
-
-    min_cost = std::min(min_cost, right_lane_inefficiency_cost);
-
-    if (min_cost == ego_lane_inefficiency_cost)
-    {
-      ChangeState(FiniteState::kKeepLane);
-    }
-    else if (min_cost == left_lane_inefficiency_cost)
-    {
-      // ChangeState(FiniteState::kPrepareChangeLaneLeft);
-      ChangeState(FiniteState::kChangeLaneLeft);
-    }
-    else
-    {
-      // ChangeState(FiniteState::kPrepareChangeLaneRight);
-      ChangeState(FiniteState::kChangeLaneRight);
-    }
-
-    std::cout << "state_duration_: " << state_duration_ << std::endl;
-    std::cout << std::endl;
-  }
-  */
-
-  state_duration_ += 0.02; //sec
+  state_duration_ += 0.02; // sec
+  timer_tracker_2_sec_ += 0.02; // sec
 
   GeneratePath(car_s, prev_path_size,
                previous_path_x, previous_path_y, map_waypoints_s, map_waypoints_x, map_waypoints_y,
@@ -269,7 +166,14 @@ void BehaviorPlanner::UpdateLanesInfo(double car_s, int prev_path_size, FiniteSt
       // front_car_speed = vehicle.speed_ - car_speed;
       front_car_speed = car_speed;
 
-      if (delta_prev_s < 50.0)
+      if (delta_s < 30.0)
+      {
+        if (lane_index == vehicle.lane_)
+        {
+          next_state = FiniteState::kAvoidCollision;
+        }
+      }
+      if (delta_prev_s < 100.0)
       {
         min_lane_s_poses[lane_index] = neighbor_car_s;
 
@@ -278,15 +182,8 @@ void BehaviorPlanner::UpdateLanesInfo(double car_s, int prev_path_size, FiniteSt
 
         // std::cout << "front_car_speed: " << front_car_speed << std::endl;
       }
-
-      if ((lane_index == vehicle.lane_) && (delta_s < 30.0))
-      {
-        next_state = FiniteState::kAvoidCollision;
-
-        std::cout << "kAvoidCollision: " << std::endl;
-      }
     }
-    else if (delta_prev_s < 0.0 && delta_prev_s > -50.0)
+    else if (delta_prev_s < 0.0 && delta_prev_s > -100.0)
     {
       behind_cars_speeds_[lane_index] = car_speed;
       behind_cars_s_poses_[lane_index] = neighbor_car_s;
@@ -299,6 +196,45 @@ void BehaviorPlanner::UpdateLanesInfo(double car_s, int prev_path_size, FiniteSt
   {
     InefficiencyCost(speed_limit_, lane_index, lane_speed_costs_[lane_index]);
   }
+}
+// --------------------------------------------------------------------------------------------------------------------
+
+void BehaviorPlanner::ChangeState(FiniteState new_state, double car_s)
+{
+  if (state_ == new_state)
+  {
+    return;
+  }
+
+  /*
+  if (new_state == kAvoidCollision)
+  {
+    prev_state_ = state_;
+    state_ = new_state;
+
+    std::cout << "kAvoidCollision: " << std::endl;
+
+    return;
+  }
+  */
+
+  if (timer_tracker_2_sec_ < 2.0 && new_state != kAvoidCollision)
+  {
+    std::cout << "Rejected: Changing state: " << state_ << "  to: " << new_state << std::endl;
+    return;
+  }
+
+  if (new_state == kAvoidCollision)
+  {
+    std::cout << "kAvoidCollision: " << std::endl;
+  }
+
+  prev_state_ = state_;
+  state_ = new_state;
+
+  timer_tracker_2_sec_ = 0.0;
+
+  // std::cout << "Changing state: " << state_ << std::endl;
 
   std::vector<double>::iterator min_iterator = std::min_element(lane_speed_costs_.begin(), lane_speed_costs_.end());
   // std::cout << "lane_speed_costs_: " << lane_speed_costs_[0] << "   " << lane_speed_costs_[1] << "   " << lane_speed_costs_[2] << std::endl;
@@ -310,24 +246,25 @@ void BehaviorPlanner::UpdateLanesInfo(double car_s, int prev_path_size, FiniteSt
   {
     // std::cout << "Suggested lane: " << target_lane << std::endl;
 
-    if ((car_s - behind_cars_s_poses_[target_lane]) > 10.0)
+    if ((car_s - behind_cars_s_poses_[target_lane]) > 5.0)
     {
       if (delta_lane < 0)
       {
-        next_state = FiniteState::kChangeLaneLeft;
+        new_state = FiniteState::kChangeLaneLeft;
         std::cout << "kChangeLaneLeft" << std::endl;
       }
       else
       {
-        next_state = FiniteState::kChangeLaneRight;
+        new_state = FiniteState::kChangeLaneRight;
         std::cout << "kChangeLaneRight" << std::endl;
       }
 
       vehicle.lane_ = target_lane;
-      
+
       // std::cout << "Go to lane: " << target_lane << std::endl;
     }
   }
+
 }
 // --------------------------------------------------------------------------------------------------------------------
 
@@ -596,5 +533,40 @@ void BehaviorPlanner::InefficiencyCost(double target_speed, int intended_lane, d
   inefficiency_cost = (target_speed - speed_intended) / (target_speed);
 
   // return inefficiency_cost;
+}
+// --------------------------------------------------------------------------------------------------------------------
+
+void BehaviorPlanner::StraightPathXY(std::vector<double> &next_x_vals, std::vector<double> &next_y_vals,
+                                     double car_x, double car_y, double car_yaw, double dist_inc, int path_points_count)
+{
+  for (int i = 0; i < path_points_count; ++i)
+  {
+    next_x_vals.push_back(car_x + (dist_inc * i) * cos(HandyModules::Deg2Rad(car_yaw)));
+    next_y_vals.push_back(car_y + (dist_inc * i) * sin(HandyModules::Deg2Rad(car_yaw)));
+  }
+}
+// --------------------------------------------------------------------------------------------------------------------
+
+void BehaviorPlanner::StraightPathSD(std::vector<double> &next_x_vals, std::vector<double> &next_y_vals,
+                                     double car_s, double car_d, double car_yaw, double lane_width,
+                                     const vector<double> &map_waypoints_s, const vector<double> &map_waypoints_x, const vector<double> &map_waypoints_y,
+                                     double dist_inc, int path_points_count)
+{
+  double car_next_s;
+  double car_next_d;
+  double car_x;
+  double car_y;
+  vector<double> car_xy;
+
+  for (int i = 0; i < path_points_count; ++i)
+  {
+    car_next_s = car_s + (i + 1) * dist_inc;
+    car_next_d = car_d;
+
+    car_xy = HandyModules::GetXY(car_next_s, car_next_d, map_waypoints_s, map_waypoints_x, map_waypoints_y);
+
+    next_x_vals.push_back(car_xy[0]);
+    next_y_vals.push_back(car_xy[1]);
+  }
 }
 // --------------------------------------------------------------------------------------------------------------------
