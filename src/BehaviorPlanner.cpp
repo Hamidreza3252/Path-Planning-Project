@@ -184,11 +184,11 @@ void BehaviorPlanner::UpdateLanesInfo(double car_s, int prev_path_size, bool &to
 
           if (delta_s < 15.0)
           {
-            acc_value = -0.25;
+            acc_value = -0.24;
           }
           else
           {
-            acc_value = -(-0.013333 * delta_s + 0.45);
+            acc_value = -(-0.01267 * delta_s + 0.43);
           }
 
           // std::cout << "delta_s: " << delta_s << "  -  delta_prev_s: " << delta_prev_s << std::endl;
