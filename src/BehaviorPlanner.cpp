@@ -197,7 +197,7 @@ void BehaviorPlanner::UpdateLanesInfo(double car_s, int prev_path_size, bool &to
     // else if (delta_s <= 0.0 && delta_s > -50.0)
     else
     {
-      if (delta_s <= 0.0 && delta_s > -50.0)
+      if (delta_prev_s <= 0.0 && delta_prev_s > -50.0)
       {
         // std::cout << "lane: " << lane_index << "  -  delta_s: " << delta_s << "  -  delta_prev_s: " << delta_prev_s << std::endl;
 
@@ -278,6 +278,19 @@ void BehaviorPlanner::UpdateState(double car_s)
   int target_lane = std::distance(lane_speed_costs_.begin(), min_iterator);
   int delta_lane = target_lane - vehicle.lane_;
 
+  if (delta_lane == 2)
+  {
+    std::cout << "delta_lane: 2" << std::endl;
+    delta_lane = 1;
+    target_lane -= 1;
+  }
+  else if (delta_lane == -2)
+  {
+    std::cout << "delta_lane: -2" << std::endl;
+    delta_lane = -1;
+    target_lane += 1;
+  }
+
   /*
   if (std::abs(delta_lane) == 2)
   {
@@ -290,15 +303,17 @@ void BehaviorPlanner::UpdateState(double car_s)
   {
     std::cout << "Suggested lane: " << target_lane << std::endl;
 
-    // std::cout << "vehicle.s_: " << vehicle.s_ << "  -  behind_cars_s_poses_: " << behind_cars_s_poses_[target_lane] << std::endl;
-    // std::cout << "car_s: " << car_s << "  -  front_cars_s_poses_: " << front_cars_s_poses_[target_lane] << std::endl;
-
     // if (((behind_cars_s_poses_[target_lane] == -1) || ((front_cars_s_poses_[target_lane] == -1))) ||
     //     (((vehicle.s_ - behind_cars_s_poses_[target_lane]) > 15.0) && (front_cars_s_poses_[target_lane] - vehicle.s_) > 15.0))
-    if (((behind_cars_s_poses_[target_lane] == -1) || ((vehicle.s_ - behind_cars_s_poses_[target_lane]) > 10.0)) &&
-        ((front_cars_s_poses_[target_lane] == -1) || ((front_cars_s_poses_[target_lane] - car_s) > 20.0)) && 
+
+    if (((behind_cars_s_poses_[target_lane] == -1) || ((car_s - behind_cars_s_poses_[target_lane]) > 10.0)) &&
+        ((front_cars_s_poses_[target_lane] == -1) || ((front_cars_s_poses_[target_lane] - car_s) > 20.0)) &&
         (vehicle.speed_ > (behind_cars_speeds_[target_lane] + 5.0)))
     {
+      std::cout << "target_lane: " << target_lane << std::endl;
+      std::cout << "vehicle.s_: " << vehicle.s_ << "  -  behind_cars_s_poses_: " << behind_cars_s_poses_[target_lane] << std::endl;
+      std::cout << "car_s: " << car_s << "  -  front_cars_s_poses_: " << front_cars_s_poses_[target_lane] << std::endl;
+
       vehicle.prev_state_ = vehicle.state_;
 
       if (delta_lane < 0)
@@ -414,7 +429,11 @@ void BehaviorPlanner::GeneratePath(double car_s, int prev_path_size,
     next_y_vals.push_back(previous_path_y[i]);
   }
 
-  int segments_count = 70 - previous_path_x.size();
+  int path_size;
+
+  path_size = (vehicle.speed_ > 20.0) ? 70 : 140;
+
+  int segments_count = path_size - previous_path_x.size();
 
   // calculate how to break up the spline points so that we travel at our desired reference velocity
   double target_x_segment = (0.02 * vehicle.action_speed_ * HandyModules::kMphToMps);
