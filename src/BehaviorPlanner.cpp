@@ -160,7 +160,7 @@ void BehaviorPlanner::UpdateLanesInfo(double car_s, int prev_path_size, FiniteSt
     double delta_s = neighbor_car_s - car_s;
     double delta_prev_s = neighbor_car_prev_s - car_s;
 
-    if (delta_s > 0.0 && delta_prev_s > 0.0)
+    if (delta_s > 0.0 || delta_prev_s > 0.0)
     {
       // vehicle.speed_ - car_speed;
       // front_car_speed = vehicle.speed_ - car_speed;
@@ -171,6 +171,8 @@ void BehaviorPlanner::UpdateLanesInfo(double car_s, int prev_path_size, FiniteSt
         if (lane_index == vehicle.lane_)
         {
           next_state = FiniteState::kAvoidCollision;
+
+          // std::cout << "delta_s: " << delta_s << "  -  delta_prev_s: " << delta_prev_s << std::endl;
         }
       }
       if (delta_prev_s < 100.0)
@@ -183,7 +185,7 @@ void BehaviorPlanner::UpdateLanesInfo(double car_s, int prev_path_size, FiniteSt
         // std::cout << "front_car_speed: " << front_car_speed << std::endl;
       }
     }
-    else if (delta_prev_s < 0.0 && delta_prev_s > -100.0)
+    else if (delta_prev_s < -5.0 && delta_prev_s > -100.0)
     {
       behind_cars_speeds_[lane_index] = car_speed;
       behind_cars_s_poses_[lane_index] = neighbor_car_s;
@@ -199,14 +201,13 @@ void BehaviorPlanner::UpdateLanesInfo(double car_s, int prev_path_size, FiniteSt
 }
 // --------------------------------------------------------------------------------------------------------------------
 
-void BehaviorPlanner::ChangeState(FiniteState new_state, double car_s)
+void BehaviorPlanner::ChangeState(FiniteState &new_state, double car_s)
 {
   if (state_ == new_state)
   {
     return;
   }
 
-  /*
   if (new_state == kAvoidCollision)
   {
     prev_state_ = state_;
@@ -216,18 +217,27 @@ void BehaviorPlanner::ChangeState(FiniteState new_state, double car_s)
 
     return;
   }
-  */
 
-  if (timer_tracker_2_sec_ < 2.0 && new_state != kAvoidCollision)
+  if (timer_tracker_2_sec_ < 2.0)
   {
+    /*
+    if (new_state == kAvoidCollision)
+    {
+      state_ = new_state;
+    }
+    */
+
     std::cout << "Rejected: Changing state: " << state_ << "  to: " << new_state << std::endl;
+
     return;
   }
 
+  /*
   if (new_state == kAvoidCollision)
   {
     std::cout << "kAvoidCollision: " << std::endl;
   }
+  */
 
   prev_state_ = state_;
   state_ = new_state;
@@ -241,12 +251,17 @@ void BehaviorPlanner::ChangeState(FiniteState new_state, double car_s)
   int target_lane = std::distance(lane_speed_costs_.begin(), min_iterator);
   int delta_lane = target_lane - vehicle.lane_;
 
+  if (std::abs(delta_lane) == 2)
+  {
+    std::cout << "2" << std::endl;
+  }
+
   // if ((neighbor_cars_s_poses_[target_lane] != -1) && (target_lane != vehicle.lane_) && (lane_speed_costs_[target_lane] != lane_speed_costs_[vehicle.lane_]))
   if ((std::abs(delta_lane) == 1) && (lane_speed_costs_[target_lane] != lane_speed_costs_[vehicle.lane_]))
   {
     // std::cout << "Suggested lane: " << target_lane << std::endl;
 
-    if ((car_s - behind_cars_s_poses_[target_lane]) > 5.0)
+    if ((car_s - behind_cars_s_poses_[target_lane]) > 20.0)
     {
       if (delta_lane < 0)
       {
@@ -461,7 +476,7 @@ void BehaviorPlanner::GeneratePath(double car_s, int prev_path_size,
 void BehaviorPlanner::Decelerate(double lower_bound_vel, double &car_ref_vel)
 {
   // 0.224 ~ 5 m/s
-  double decelerate_value = 0.224 / 1.5;
+  double decelerate_value = 0.224 / 2.5;
   car_ref_vel = std::max<double>(car_ref_vel - decelerate_value, lower_bound_vel);
 }
 // --------------------------------------------------------------------------------------------------------------------
