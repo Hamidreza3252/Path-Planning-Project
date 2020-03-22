@@ -58,7 +58,7 @@ public:
   void UpdateState(double car_s);
 
 private:
-  void UpdateLanesInfo(double car_s, int prev_path_size, bool &too_close, double &front_car_speed);
+  void UpdateLanesInfo(double car_s, int prev_path_size, bool &too_close, double &acc_value, double &front_car_speed);
   void CheckCollision(double car_s, int prev_path_size, bool &too_close, double &next_car_speed);
 
   void GeneratePath(double car_s, int prev_path_size,
@@ -66,7 +66,7 @@ private:
                     const std::vector<double> &map_waypoints_s, const std::vector<double> &map_waypoints_x, const std::vector<double> &map_waypoints_y,
                     std::vector<double> &next_x_vals, std::vector<double> &next_y_vals);
 
-  void Decelerate(double lower_bound_vel, double &car_ref_vel);
+  void Decelerate(double acc_value, double lower_bound_vel, double &car_ref_vel);
   void Accelerate(double upper_bound_vel, double &car_ref_vel);
 
   void SpeedCost(double ego_car_speed, double speed_limit, double &speed_cost, SpeedCostReductionAction &recommended_action);

@@ -45,6 +45,7 @@ void BehaviorPlanner::HandleHighwayDriving(double end_path_s,
   bool change_state_allowed;
   // FiniteState next_state;
   bool too_close = false;
+  double acc_value;
   double front_car_speed;
   double target_speed = speed_limit_ - speed_buffer_;
   // double car_ref_vel = 0.0;
@@ -71,7 +72,7 @@ void BehaviorPlanner::HandleHighwayDriving(double end_path_s,
   int lanes_count = front_cars_speeds_.size();
 
   // this check will be done with the next car, independent of the state of the ego car
-  UpdateLanesInfo(car_s, prev_path_size, too_close, front_car_speed);
+  UpdateLanesInfo(car_s, prev_path_size, too_close, acc_value, front_car_speed);
   UpdateState(car_s);
 
   // safety critical
@@ -83,7 +84,7 @@ void BehaviorPlanner::HandleHighwayDriving(double end_path_s,
     target_speed = std::min(front_car_speed, target_speed);
     // std::cout << "safe_speed: " << target_speed << std::endl;
 
-    Decelerate(target_speed, vehicle.action_speed_);
+    Decelerate(acc_value, target_speed, vehicle.action_speed_);
   }
   else
   {
@@ -114,10 +115,11 @@ void BehaviorPlanner::HandleHighwayDriving(double end_path_s,
 // --------------------------------------------------------------------------------------------------------------------
 
 // void BehaviorPlanner::UpdateLanesInfo(double car_s, int prev_path_size, FiniteState &next_state, double &front_car_speed)
-void BehaviorPlanner::UpdateLanesInfo(double car_s, int prev_path_size, bool &too_close, double &front_car_speed)
+void BehaviorPlanner::UpdateLanesInfo(double car_s, int prev_path_size, bool &too_close, double &acc_value, double &front_car_speed)
 {
   // next_state = FiniteState::kKeepLane;
   too_close = false;
+  acc_value = 0.224; // ~ 5 m / s2
   front_car_speed = 0.0;
 
   // double prev_next_car_speed = MAXFLOAT;
@@ -179,6 +181,15 @@ void BehaviorPlanner::UpdateLanesInfo(double car_s, int prev_path_size, bool &to
         {
           // next_state = FiniteState::kAvoidCollision;
           too_close = true;
+
+          if (delta_s < 15.0)
+          {
+            acc_value = -0.25;
+          }
+          else
+          {
+            acc_value = -(-0.013333 * delta_s + 0.45);
+          }
 
           // std::cout << "delta_s: " << delta_s << "  -  delta_prev_s: " << delta_prev_s << std::endl;
         }
@@ -306,7 +317,7 @@ void BehaviorPlanner::UpdateState(double car_s)
     // if (((behind_cars_s_poses_[target_lane] == -1) || ((front_cars_s_poses_[target_lane] == -1))) ||
     //     (((vehicle.s_ - behind_cars_s_poses_[target_lane]) > 15.0) && (front_cars_s_poses_[target_lane] - vehicle.s_) > 15.0))
 
-    if (((behind_cars_s_poses_[target_lane] == -1) || ((car_s - behind_cars_s_poses_[target_lane]) > 10.0)) &&
+    if (((behind_cars_s_poses_[target_lane] == -1) || ((vehicle.s_ - behind_cars_s_poses_[target_lane]) > 10.0)) &&
         ((front_cars_s_poses_[target_lane] == -1) || ((front_cars_s_poses_[target_lane] - car_s) > 20.0)) &&
         (vehicle.speed_ > (behind_cars_speeds_[target_lane] + 5.0)))
     {
@@ -429,9 +440,9 @@ void BehaviorPlanner::GeneratePath(double car_s, int prev_path_size,
     next_y_vals.push_back(previous_path_y[i]);
   }
 
-  int path_size;
+  int path_size = 70;
 
-  path_size = (vehicle.speed_ > 20.0) ? 70 : 140;
+  // path_size = (vehicle.speed_ > 20.0) ? 50 : 80;
 
   int segments_count = path_size - previous_path_x.size();
 
@@ -470,11 +481,11 @@ void BehaviorPlanner::GeneratePath(double car_s, int prev_path_size,
  * @car_ref_vel: (input/output) the velocity of the ego car
  */
 
-void BehaviorPlanner::Decelerate(double lower_bound_vel, double &car_ref_vel)
+void BehaviorPlanner::Decelerate(double acc_value, double lower_bound_vel, double &car_ref_vel)
 {
   // 0.224 ~ 5 m/s
-  double decelerate_value = 0.224 / 2.0;
-  car_ref_vel = std::max<double>(car_ref_vel - decelerate_value, lower_bound_vel);
+  // double decelerate_value = 0.224 / 1.8;
+  car_ref_vel = std::max<double>(car_ref_vel + acc_value, lower_bound_vel);
 }
 // --------------------------------------------------------------------------------------------------------------------
 
