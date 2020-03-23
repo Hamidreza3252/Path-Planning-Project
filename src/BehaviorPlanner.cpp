@@ -317,7 +317,7 @@ void BehaviorPlanner::UpdateState(double car_s)
     // if (((behind_cars_s_poses_[target_lane] == -1) || ((front_cars_s_poses_[target_lane] == -1))) ||
     //     (((vehicle.s_ - behind_cars_s_poses_[target_lane]) > 15.0) && (front_cars_s_poses_[target_lane] - vehicle.s_) > 15.0))
 
-    if (((behind_cars_s_poses_[target_lane] == -1) || ((vehicle.s_ - behind_cars_s_poses_[target_lane]) > 10.0)) &&
+    if (((behind_cars_s_poses_[target_lane] == -1) || ((vehicle.s_ - behind_cars_s_poses_[target_lane]) > 5.0)) &&
         ((front_cars_s_poses_[target_lane] == -1) || ((front_cars_s_poses_[target_lane] - car_s) > 20.0)) &&
         (vehicle.speed_ > (behind_cars_speeds_[target_lane] + 5.0)))
     {
